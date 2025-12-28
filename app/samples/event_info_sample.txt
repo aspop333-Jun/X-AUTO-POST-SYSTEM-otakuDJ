@@ -1,0 +1,6 @@
+event_en: TOKYO GAME SHOW 2025
+event_jp: 東京ゲームショウ2025
+date: 2025.09.25 - 28
+venue: 幕張メッセ
+category: ブース
+hashtags: #TGS2025 #イベントコンパニオン

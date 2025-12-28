@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📸 イベント写真自動投稿</title>
+    <link rel="stylesheet" href="styles.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <script src="comment-rules.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>📸 イベント写真自動投稿</h1>
+            <p class="subtitle">TGS / レース / 展示会</p>
+        </header>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active" id="step1-indicator">
+                <span class="step-number">1</span>
+                <span class="step-label">イベント設定</span>
+            </div>
+            <div class="step-line"></div>
+            <div class="step" id="step2-indicator">
+                <span class="step-number">2</span>
+                <span class="step-label">写真投稿</span>
+            </div>
+        </div>
+
+        <!-- Step 1: Event Setup -->
+        <section class="step-panel active" id="step1-panel">
+            <div class="panel-header">
+                <h2>📄 イベント情報を設定</h2>
+                <p>event_info.txt をドロップするか、手動で入力してください</p>
+            </div>
+
+            <!-- File Drop Zone -->
+            <div class="drop-zone" id="event-drop-zone">
+                <div class="drop-zone-content">
+                    <span class="drop-icon">📄</span>
+                    <p>event_info.txt をドラッグ&ドロップ</p>
+                    <span class="drop-or">または</span>
+                    <input type="file" id="event-file-input" accept=".txt" hidden>
+                    <button class="btn btn-secondary" onclick="document.getElementById('event-file-input').click()">
+                        ファイルを選択
+                    </button>
+                </div>
+            </div>
+
+            <div class="divider">
+                <span>または手動入力</span>
+            </div>
+
+            <!-- Manual Input Form -->
+            <form class="event-form" id="event-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="event-en">イベント名（英語）</label>
+                        <input type="text" id="event-en" placeholder="TOKYO GAME SHOW 2025">
+                    </div>
+                    <div class="form-group">
+                        <label for="event-jp">イベント名（日本語）</label>
+                        <input type="text" id="event-jp" placeholder="東京ゲームショウ2025">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="event-date">開催日</label>
+                        <input type="text" id="event-date" placeholder="2025.09.25 - 28">
+                    </div>
+                    <div class="form-group">
+                        <label for="event-venue">会場</label>
+                        <input type="text" id="event-venue" placeholder="幕張メッセ">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="event-category">カテゴリ</label>
+                        <select id="event-category">
+                            <option value="ブース">ブース</option>
+                            <option value="チーム">チーム</option>
+                            <option value="出展">出展</option>
+                            <option value="サーキット">サーキット</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="event-hashtags">ハッシュタグ</label>
+                        <input type="text" id="event-hashtags" placeholder="#TGS2025 #イベントコンパニオン">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-large">
+                    ✓ イベント設定を確定
+                </button>
+            </form>
+        </section>
+
+        <!-- Step 2: Photo Posting -->
+        <section class="step-panel" id="step2-panel">
+            <!-- Event Summary Bar -->
+            <div class="event-summary" id="event-summary">
+                <div class="event-info">
+                    <span class="event-icon">📍</span>
+                    <div class="event-details">
+                        <strong id="summary-event-name">TOKYO GAME SHOW 2025 – 東京ゲームショウ2025</strong>
+                        <span id="summary-event-meta">2025.09.25-28｜幕張メッセ</span>
+                    </div>
+                </div>
+                <button class="btn btn-ghost btn-small" id="change-event-btn">変更</button>
+            </div>
+
+            <!-- Photo Upload -->
+            <div class="photo-section">
+                <h3>📷 写真</h3>
+                <div class="photo-drop-zone" id="photo-drop-zone">
+                    <div class="photo-preview" id="photo-preview">
+                        <span class="photo-placeholder">写真をドロップ</span>
+                    </div>
+                </div>
+                <div class="photo-actions">
+                    <input type="file" id="photo-file-input" accept="image/*" hidden>
+                    <button class="btn btn-secondary" onclick="document.getElementById('photo-file-input').click()">
+                        写真を選択
+                    </button>
+                    <button class="btn btn-ghost" id="clear-input-btn">📋 入力をクリア</button>
+                </div>
+            </div>
+
+            <!-- Input Form -->
+            <div class="input-section">
+                <h3>✏️ 入力情報</h3>
+                <form class="photo-form" id="photo-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="booth-name">ブース名</label>
+                            <input type="text" id="booth-name" placeholder="SEGA">
+                        </div>
+                        <div class="form-group">
+                            <label for="booth-account">ブース公式@</label>
+                            <input type="text" id="booth-account" placeholder="@SEGA">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="person-role">役割</label>
+                            <select id="person-role">
+                                <option value="モデル">モデル</option>
+                                <option value="コスプレイヤー">コスプレイヤー</option>
+                                <option value="イベントコンパニオン">イベントコンパニオン</option>
+                                <option value="RQ">RQ</option>
+                                <option value="アンバサダー">アンバサダー</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="person-name">名前</label>
+                            <input type="text" id="person-name" placeholder="世森 響">
+                        </div>
+                        <div class="form-group">
+                            <label for="person-account">Xアカウント</label>
+                            <input type="text" id="person-account" placeholder="@hibikiyomori">
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Comment Generation Section -->
+            <div class="ai-section">
+                <h3>✨ 一言コメント生成</h3>
+                <div class="comment-options">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="expression-type">表情・雰囲気</label>
+                            <select id="expression-type">
+                                <option value="笑顔">😊 笑顔・明るい</option>
+                                <option value="クール">😎 クール・凛とした</option>
+                                <option value="柔らか">🌸 柔らか・優しい</option>
+                                <option value="華やか">✨ 華やか・存在感</option>
+                                <option value="自然">🍃 自然体・落ち着き</option>
+                                <option value="力強い">💪 力強い・印象的</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="focus-point">注目ポイント</label>
+                            <select id="focus-point">
+                                <option value="表情">表情</option>
+                                <option value="佇まい">佇まい</option>
+                                <option value="視線">視線</option>
+                                <option value="衣装">衣装</option>
+                                <option value="雰囲気">雰囲気</option>
+                                <option value="全体">全体のバランス</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="context-match">マッチ先</label>
+                            <select id="context-match">
+                                <option value="ブースの雰囲気">ブースの雰囲気</option>
+                                <option value="会場の空気">会場の空気</option>
+                                <option value="ライティング">ライティング</option>
+                                <option value="世界観">世界観</option>
+                                <option value="その場">その場の空気感</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="ai-comment-box">
+                    <textarea id="ai-comment" placeholder="コメントを生成してください..." rows="2"></textarea>
+                    <div class="ai-actions">
+                        <button class="btn btn-accent" id="generate-comment-btn">
+                            <span class="btn-icon">✨</span> コメント生成
+                        </button>
+                        <button class="btn btn-ghost btn-small" id="regenerate-btn">🔄 再生成</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Post Preview -->
+            <div class="preview-section">
+                <h3>📝 投稿プレビュー</h3>
+                <div class="preview-cards">
+                    <div class="preview-card">
+                        <div class="preview-header">
+                            <span class="preview-icon">𝕏</span>
+                            <span class="preview-title">X (メイン)</span>
+                        </div>
+                        <div class="preview-content" id="preview-x1"></div>
+                        <button class="btn btn-copy" data-target="preview-x1">📋 コピー</button>
+                    </div>
+                    <div class="preview-card">
+                        <div class="preview-header">
+                            <span class="preview-icon">𝕏</span>
+                            <span class="preview-title">X (サブ)</span>
+                        </div>
+                        <div class="preview-content" id="preview-x2"></div>
+                        <button class="btn btn-copy" data-target="preview-x2">📋 コピー</button>
+                    </div>
+                    <div class="preview-card">
+                        <div class="preview-header">
+                            <span class="preview-icon">📷</span>
+                            <span class="preview-title">Instagram</span>
+                        </div>
+                        <div class="preview-content" id="preview-ig"></div>
+                        <button class="btn btn-copy" data-target="preview-ig">📋 コピー</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-section">
+                <button class="btn btn-primary btn-large" id="send-make-btn">
+                    📤 Make.comへ送信
+                </button>
+                <button class="btn btn-secondary btn-large" id="next-photo-btn">
+                    次の写真へ →
+                </button>
+            </div>
+        </section>
+
+        <!-- Settings Modal -->
+        <div class="modal" id="settings-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>⚙️ 設定</h2>
+                    <button class="modal-close" id="close-settings">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="gemini-api-key">Gemini API Key</label>
+                        <input type="password" id="gemini-api-key" placeholder="API Keyを入力">
+                    </div>
+                    <div class="form-group">
+                        <label for="make-webhook-url">Make.com Webhook URL</label>
+                        <input type="text" id="make-webhook-url" placeholder="https://hook.make.com/...">
+                    </div>
+                    <button class="btn btn-primary" id="save-settings-btn">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Button -->
+        <button class="settings-btn" id="open-settings">⚙️</button>
+
+        <!-- Toast Notification -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
