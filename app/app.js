@@ -163,15 +163,20 @@ function initEventListeners() {
                 return;
             }
 
-            // Parse the text using event-patterns.js
-            const result = parseEventText(pasteInput.value);
+            // Parse using Universal Event Parser (supports any input format)
+            const result = typeof parseEvent === 'function'
+                ? parseEvent(pasteInput.value)
+                : parseEventText(pasteInput.value);
 
             // Apply to form
             applyParsedData(result);
 
-            // Show result feedback
-            if (result.confidence > 30) {
-                parseResult.innerHTML = `<span class="success">✓ ${result.matched.length}項目を検出しました</span>`;
+            // Show result feedback with confidence
+            const matchCount = result.matched?.length || 0;
+            const confidence = result.confidence || 0;
+
+            if (confidence > 40) {
+                parseResult.innerHTML = `<span class="success">✓ ${matchCount}項目を検出 (信頼度: ${confidence}%)</span>`;
                 showToast('イベント情報を解析しました', 'success');
 
                 // Switch to manual tab to show filled form
@@ -179,9 +184,12 @@ function initEventListeners() {
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 document.querySelector('[data-tab="manual"]')?.classList.add('active');
                 document.getElementById('manual-tab')?.classList.add('active');
-            } else {
-                parseResult.innerHTML = `<span class="warning">⚠ 一部の項目のみ検出されました</span>`;
+            } else if (confidence > 15) {
+                parseResult.innerHTML = `<span class="warning">⚠ ${matchCount}項目を検出 (信頼度: ${confidence}%) - 確認推奨</span>`;
                 showToast('一部の情報を解析しました。手動で確認してください', 'warning');
+            } else {
+                parseResult.innerHTML = `<span class="warning">⚠ 解析結果が不十分です。手動入力をお勧めします</span>`;
+                showToast('解析できませんでした', 'error');
             }
         });
     }
