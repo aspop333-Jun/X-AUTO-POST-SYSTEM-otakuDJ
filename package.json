@@ -5,12 +5,18 @@
     "scripts": {
         "dev": "netlify dev",
         "build": "echo 'No build step required'",
-        "deploy": "netlify deploy --prod"
+        "deploy": "netlify deploy --prod",
+        "test": "vitest --run",
+        "test:watch": "vitest",
+        "test:ui": "vitest --ui"
     },
     "dependencies": {
         "@google/generative-ai": "^0.21.0"
     },
     "devDependencies": {
-        "netlify-cli": "^18.0.0"
+        "fast-check": "^4.5.2",
+        "jsdom": "^27.4.0",
+        "netlify-cli": "^18.0.0",
+        "vitest": "^4.0.16"
     }
 }

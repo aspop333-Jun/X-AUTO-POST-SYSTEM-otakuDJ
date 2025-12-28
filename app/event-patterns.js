@@ -1177,10 +1177,8 @@ const UniversalEventParser = {
     registerFieldPattern,
 };
 
-// Node/CommonJS
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = UniversalEventParser;
-}
+// Export for ES modules
+export default UniversalEventParser;
 
 // Browser global
 if (typeof window !== 'undefined') {

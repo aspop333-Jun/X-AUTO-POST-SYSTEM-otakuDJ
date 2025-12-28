@@ -46,3 +46,7 @@ Thumbs.db
 
 # Local settings
 .gemini/
+node_modules
+
+# Local Netlify folder
+.netlify

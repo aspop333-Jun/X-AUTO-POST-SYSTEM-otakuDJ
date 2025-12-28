@@ -9,8 +9,25 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <script src="event-patterns.js"></script>
-    <script src="comment-rules.js"></script>
+    <script type="module" src="event-patterns.js"></script>
+    <script type="module" src="comment-rules.js"></script>
+    <script type="module" src="bulk-text-parser.js"></script>
+    <script type="module" src="storage-adapter.js"></script>
+    <script type="module" src="state-manager.js"></script>
+    <script type="module" src="person-database.js"></script>
+    <script type="module" src="autocomplete-engine.js"></script>
+    <script type="module" src="autocomplete-ui.js"></script>
+    <script type="module" src="template-database.js"></script>
+    <script type="module" src="template-ui.js"></script>
+    <script type="module" src="history-database.js"></script>
+    <script type="module" src="history-ui.js"></script>
+    <script type="module" src="inline-edit.js"></script>
+    <script type="module" src="status-indicator.js"></script>
+    <script type="module" src="quick-preview.js"></script>
+    <script type="module" src="context-menu.js"></script>
+    <script type="module" src="selection-mode.js"></script>
+    <script type="module" src="focus-manager.js"></script>
+    <script type="module" src="touch-gestures.js"></script>
 </head>
 
 <body>
@@ -33,6 +50,19 @@
                 <span class="step-label">写真投稿</span>
             </div>
         </div>
+
+        <!-- Breadcrumb Navigation -->
+        <nav class="breadcrumb-nav" id="breadcrumb-nav">
+            <button class="breadcrumb-item" id="breadcrumb-step1" data-step="1">
+                <span class="breadcrumb-icon">📄</span>
+                <span class="breadcrumb-text">イベント設定</span>
+            </button>
+            <span class="breadcrumb-separator">›</span>
+            <button class="breadcrumb-item" id="breadcrumb-step2" data-step="2" disabled>
+                <span class="breadcrumb-icon">📸</span>
+                <span class="breadcrumb-text">写真投稿</span>
+            </button>
+        </nav>
 
         <!-- Step 1: Event Setup -->
         <section class="step-panel active" id="step1-panel">
@@ -128,7 +158,7 @@
             </div>
         </section>
 
-        <!-- Step 2: Photo Posting -->
+        <!-- Step 2: Post Queue -->
         <section class="step-panel" id="step2-panel">
             <!-- Event Summary Bar -->
             <div class="event-summary" id="event-summary">
@@ -142,117 +172,62 @@
                 <button class="btn btn-ghost btn-small" id="change-event-btn">変更</button>
             </div>
 
-            <!-- Photo Upload -->
-            <div class="photo-section">
-                <h3>📷 写真</h3>
-                <div class="photo-drop-zone" id="photo-drop-zone">
-                    <div class="photo-preview" id="photo-preview">
-                        <span class="photo-placeholder">写真をドロップ</span>
+            <!-- Quick Add Section -->
+            <div class="quick-add-section">
+                <div class="quick-add-drop" id="quick-add-drop">
+                    <input type="file" id="photo-file-input" accept="image/*" multiple hidden>
+                    <div class="quick-add-content">
+                        <span class="quick-add-icon">📷</span>
+                        <span class="quick-add-text">写真をドロップして投稿を追加（最大10枚）</span>
+                        <span class="quick-add-count" id="queue-count">0 / 10</span>
                     </div>
                 </div>
-                <div class="photo-actions">
-                    <input type="file" id="photo-file-input" accept="image/*" hidden>
+                <div class="quick-add-actions">
                     <button class="btn btn-secondary" onclick="document.getElementById('photo-file-input').click()">
-                        写真を選択
+                        📷 写真を選択
                     </button>
-                    <button class="btn btn-ghost" id="clear-input-btn">📋 入力をクリア</button>
+                    <button class="btn btn-ghost" id="add-empty-btn">
+                        ➕ 空の投稿を追加
+                    </button>
+                    <button class="btn btn-ghost" id="open-history-btn">
+                        📜 履歴
+                    </button>
                 </div>
             </div>
 
-            <!-- Input Form -->
-            <div class="input-section">
-                <h3>✏️ 入力情報</h3>
-                <form class="photo-form" id="photo-form">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="booth-name">ブース名</label>
-                            <input type="text" id="booth-name" placeholder="SEGA">
+            <!-- Post Queue -->
+            <div class="post-queue-section">
+                <div class="queue-header">
+                    <h3>📝 投稿キュー</h3>
+                    <div class="queue-completion-bar" id="queue-completion-bar">
+                        <div class="completion-bar-label">
+                            <span>完了率</span>
+                            <span id="completion-percentage">0%</span>
                         </div>
-                        <div class="form-group">
-                            <label for="booth-account">ブース公式@</label>
-                            <input type="text" id="booth-account" placeholder="@SEGA">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="person-role">役割</label>
-                            <select id="person-role">
-                                <option value="モデル">モデル</option>
-                                <option value="コスプレイヤー">コスプレイヤー</option>
-                                <option value="イベントコンパニオン">イベントコンパニオン</option>
-                                <option value="RQ">RQ</option>
-                                <option value="アンバサダー">アンバサダー</option>
-                            </select>
+                        <div class="completion-bar-container">
+                            <div class="completion-bar-fill" id="completion-bar-fill"></div>
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="person-name">名前</label>
-                            <input type="text" id="person-name" placeholder="世森 響">
-                        </div>
-                        <div class="form-group">
-                            <label for="person-account">Xアカウント</label>
-                            <input type="text" id="person-account" placeholder="@hibikiyomori">
-                        </div>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Comment Generation Section -->
-            <div class="ai-section">
-                <h3>✨ 一言コメント生成</h3>
-                <div class="comment-options">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="expression-type">表情・雰囲気</label>
-                            <select id="expression-type">
-                                <option value="笑顔">😊 笑顔・明るい</option>
-                                <option value="クール">😎 クール・凛とした</option>
-                                <option value="柔らか">🌸 柔らか・優しい</option>
-                                <option value="華やか">✨ 華やか・存在感</option>
-                                <option value="自然">🍃 自然体・落ち着き</option>
-                                <option value="力強い">💪 力強い・印象的</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="focus-point">注目ポイント</label>
-                            <select id="focus-point">
-                                <option value="表情">表情</option>
-                                <option value="佇まい">佇まい</option>
-                                <option value="視線">視線</option>
-                                <option value="衣装">衣装</option>
-                                <option value="雰囲気">雰囲気</option>
-                                <option value="全体">全体のバランス</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="context-match">マッチ先</label>
-                            <select id="context-match">
-                                <option value="ブースの雰囲気">ブースの雰囲気</option>
-                                <option value="会場の空気">会場の空気</option>
-                                <option value="ライティング">ライティング</option>
-                                <option value="世界観">世界観</option>
-                                <option value="その場">その場の空気感</option>
-                            </select>
-                        </div>
+                    <div class="queue-actions-header">
+                        <button class="btn btn-ghost btn-small" id="batch-generate-btn">✨ 一括コメント生成</button>
+                        <button class="btn btn-ghost btn-small" id="clear-all-btn">🗑️ 全てクリア</button>
+                        <button class="btn btn-primary btn-small" id="send-all-btn">📤 一括送信</button>
                     </div>
                 </div>
-                <div class="ai-comment-box">
-                    <textarea id="ai-comment" placeholder="コメントを生成してください..." rows="2"></textarea>
-                    <div class="ai-actions">
-                        <button class="btn btn-accent" id="generate-comment-btn">
-                            <span class="btn-icon">✨</span> コメント生成
-                        </button>
-                        <button class="btn btn-ghost btn-small" id="regenerate-btn">🔄 再生成</button>
+
+                <div class="post-queue" id="post-queue">
+                    <!-- Queue items will be rendered here by JavaScript -->
+                    <div class="queue-empty" id="queue-empty">
+                        <span class="queue-empty-icon">📭</span>
+                        <p>投稿がありません</p>
+                        <p class="queue-empty-hint">写真をドロップするか、「空の投稿を追加」をクリック</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Post Preview -->
-            <div class="preview-section">
-                <h3>📝 投稿プレビュー</h3>
+            <!-- Live Preview (for current/selected post) -->
+            <div class="preview-section" id="live-preview-section" style="display: none;">
+                <h3>📄 プレビュー</h3>
                 <div class="preview-cards">
                     <div class="preview-card">
                         <div class="preview-header">
@@ -280,17 +255,246 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Action Buttons -->
-            <div class="action-section">
-                <button class="btn btn-primary btn-large" id="send-make-btn">
-                    📤 Make.comへ送信
-                </button>
-                <button class="btn btn-secondary btn-large" id="next-photo-btn">
-                    次の写真へ →
-                </button>
-            </div>
         </section>
+
+        <!-- Edit Post Modal (Full Screen) -->
+        <div class="modal fullscreen-modal" id="edit-post-modal">
+            <div class="fullscreen-modal-content">
+                <!-- Header with tabs -->
+                <div class="fullscreen-header">
+                    <div class="fullscreen-title">
+                        <h2 id="edit-modal-title">✏️ 投稿を編集</h2>
+                        <span class="edit-status-badge" id="edit-status-badge">未編集</span>
+                    </div>
+                    <div class="fullscreen-tabs">
+                        <button class="fullscreen-tab active" data-mode="edit" id="tab-edit">✏️ 編集</button>
+                        <button class="fullscreen-tab" data-mode="preview" id="tab-preview">👁️ プレビュー</button>
+                    </div>
+                    <button class="modal-close" id="close-edit-modal">&times;</button>
+                </div>
+
+                <!-- Edit Mode Content -->
+                <div class="fullscreen-body" id="edit-mode-content">
+                    <div class="fullscreen-layout">
+                        <!-- Left: Image -->
+                        <div class="fullscreen-image-section">
+                            <div class="fullscreen-image-preview" id="edit-image-preview">
+                                <span class="photo-placeholder">📷 写真をドロップ</span>
+                            </div>
+                            <input type="file" id="edit-photo-input" accept="image/*" hidden>
+                            <button class="btn btn-secondary"
+                                onclick="document.getElementById('edit-photo-input').click()">
+                                📷 写真を選択・変更
+                            </button>
+                        </div>
+
+                        <!-- Right: Form -->
+                        <div class="fullscreen-form-section">
+                            <!-- Section 1: 基本情報 (Booth Info) -->
+                            <div class="collapsible-section" data-section="basic">
+                                <div class="section-header">
+                                    <div class="section-title">
+                                        <span class="section-icon">🏢</span>
+                                        <h3>基本情報</h3>
+                                        <span class="completion-indicator" id="basic-completion">○</span>
+                                    </div>
+                                    <button class="section-toggle" aria-label="Toggle section">
+                                        <span class="toggle-icon">▼</span>
+                                    </button>
+                                </div>
+                                <div class="section-content">
+                                    <!-- Template Selector -->
+                                    <div class="template-selector-section">
+                                        <div class="form-row" style="align-items: flex-end;">
+                                            <div class="form-group" style="flex: 1;">
+                                                <label for="booth-template-select">ブーステンプレート</label>
+                                                <select id="booth-template-select">
+                                                    <option value="">-- テンプレートを選択 --</option>
+                                                </select>
+                                            </div>
+                                            <button class="btn btn-ghost btn-small" id="save-booth-template-btn" title="現在のブース情報をテンプレートとして保存">
+                                                💾 保存
+                                            </button>
+                                            <button class="btn btn-ghost btn-small" id="manage-templates-btn" title="テンプレートを管理">
+                                                ⚙️
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="edit-booth-name">ブース名</label>
+                                        <input type="text" id="edit-booth-name" placeholder="SEGA">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="edit-booth-account">ブース公式@</label>
+                                        <input type="text" id="edit-booth-account" placeholder="@SEGA">
+                                    </div>
+                                    <div class="form-group">
+                                        <button class="btn btn-ghost btn-small" id="apply-booth-to-all-btn" style="width: 100%;">
+                                            📋 このブース情報を全ての投稿に適用
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 2: 人物情報 (Person Info) -->
+                            <div class="collapsible-section" data-section="person">
+                                <div class="section-header">
+                                    <div class="section-title">
+                                        <span class="section-icon">👤</span>
+                                        <h3>人物情報</h3>
+                                        <span class="completion-indicator" id="person-completion">○</span>
+                                    </div>
+                                    <button class="section-toggle" aria-label="Toggle section">
+                                        <span class="toggle-icon">▼</span>
+                                    </button>
+                                </div>
+                                <div class="section-content">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="edit-person-role">役割</label>
+                                            <select id="edit-person-role">
+                                                <option value="モデル">モデル</option>
+                                                <option value="コスプレイヤー">コスプレイヤー</option>
+                                                <option value="イベントコンパニオン">イベントコンパニオン</option>
+                                                <option value="RQ">RQ</option>
+                                                <option value="アンバサダー">アンバサダー</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="edit-person-name">名前</label>
+                                        <input type="text" id="edit-person-name" placeholder="世森 響">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="edit-person-account">Xアカウント</label>
+                                        <input type="text" id="edit-person-account" placeholder="@hibikiyomori">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section 3: コメント (Comment) -->
+                            <div class="collapsible-section" data-section="comment">
+                                <div class="section-header">
+                                    <div class="section-title">
+                                        <span class="section-icon">💬</span>
+                                        <h3>コメント</h3>
+                                        <span class="completion-indicator" id="comment-completion">○</span>
+                                    </div>
+                                    <button class="section-toggle" aria-label="Toggle section">
+                                        <span class="toggle-icon">▼</span>
+                                    </button>
+                                </div>
+                                <div class="section-content">
+                                    <div class="form-row" style="align-items: flex-end;">
+                                        <div class="form-group">
+                                            <label for="edit-expression-type">表情</label>
+                                            <select id="edit-expression-type">
+                                                <option value="笑顔">😊 笑顔</option>
+                                                <option value="クール">😎 クール</option>
+                                                <option value="柔らか">🌸 柔らか</option>
+                                                <option value="華やか">✨ 華やか</option>
+                                                <option value="自然">🍃 自然体</option>
+                                                <option value="力強い">💪 力強い</option>
+                                            </select>
+                                        </div>
+                                        <button class="btn btn-accent" id="edit-generate-comment-btn">
+                                            ✨ コメント生成
+                                        </button>
+                                    </div>
+                                    <textarea id="edit-ai-comment" placeholder="一言コメント..." rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Mode Content -->
+                <div class="fullscreen-body" id="preview-mode-content" style="display: none;">
+                    <div class="fullscreen-preview-layout">
+                        <div class="preview-image-large" id="preview-image-large">
+                            <span class="photo-placeholder">画像なし</span>
+                        </div>
+                        <div class="preview-text-container">
+                            <div class="preview-card-large">
+                                <div class="preview-header">
+                                    <span class="preview-icon">𝕏</span>
+                                    <span class="preview-title">X (メイン)</span>
+                                </div>
+                                <div class="preview-content-large" id="edit-preview-x1"></div>
+                                <button class="btn btn-copy" onclick="copyPreviewText('edit-preview-x1')">📋
+                                    コピー</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="fullscreen-footer">
+                    <button class="btn btn-ghost" id="cancel-edit-btn">キャンセル</button>
+                    <button class="btn btn-primary btn-large" id="save-edit-btn">💾 保存してプレビューへ</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- X-Style Preview Modal -->
+        <div class="modal" id="x-preview-modal">
+            <div class="modal-content x-preview-content">
+                <div class="modal-header x-header">
+                    <button class="modal-close" id="close-x-preview">&times;</button>
+                    <h2>投稿プレビュー</h2>
+                    <button class="btn btn-primary btn-small" id="modal-post-btn">ポストする</button>
+                </div>
+                <div class="x-post-composer">
+                    <div class="x-user-area">
+                        <div class="x-avatar">📸</div>
+                        <div class="x-user-input">
+                            <div class="x-post-text" id="modal-post-text"></div>
+                        </div>
+                    </div>
+                    <div class="x-media-preview" id="modal-media-preview">
+                        <!-- Image will be inserted here -->
+                    </div>
+                </div>
+                <div class="x-modal-actions">
+                    <button class="btn btn-secondary" id="modal-copy-btn">📋 テキストをコピー</button>
+                    <button class="btn btn-ghost" id="modal-copy-all-btn">🖼️ 画像を新規タブで開く</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bulk Text Parser Preview Modal -->
+        <div class="modal fullscreen-modal" id="bulk-parser-modal">
+            <div class="fullscreen-modal-content">
+                <div class="fullscreen-header">
+                    <div class="fullscreen-title">
+                        <h2>📋 一括テキスト解析プレビュー</h2>
+                        <span class="edit-status-badge" id="parser-format-badge">unknown</span>
+                    </div>
+                    <button class="modal-close" id="close-parser-modal">&times;</button>
+                </div>
+
+                <div class="fullscreen-body">
+                    <div class="parser-preview-container">
+                        <!-- Warnings Section -->
+                        <div class="parser-warnings" id="parser-warnings" style="display: none;">
+                            <div class="warning-icon">⚠️</div>
+                            <div class="warning-messages" id="parser-warning-messages"></div>
+                        </div>
+
+                        <!-- Parsed Entries -->
+                        <div class="parser-entries" id="parser-entries">
+                            <!-- Entries will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fullscreen-footer">
+                    <button class="btn btn-ghost" id="cancel-parser-btn">キャンセル</button>
+                    <button class="btn btn-primary btn-large" id="apply-parser-btn">✓ 適用して投稿を作成</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Settings Modal -->
         <div class="modal" id="settings-modal">
@@ -310,6 +514,138 @@
             </div>
         </div>
 
+        <!-- Save Template Dialog -->
+        <div class="modal" id="save-template-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>💾 テンプレートを保存</h2>
+                    <button class="modal-close" id="close-save-template">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="template-name">テンプレート名</label>
+                        <input type="text" id="template-name" placeholder="例: TGS - SEGA">
+                    </div>
+                    <div class="form-group">
+                        <label for="template-category">カテゴリ</label>
+                        <select id="template-category">
+                            <option value="">-- カテゴリを選択 --</option>
+                            <option value="TGS">TGS</option>
+                            <option value="レース">レース</option>
+                            <option value="展示会">展示会</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </div>
+                    <div class="template-preview">
+                        <strong>保存される内容:</strong>
+                        <div id="template-preview-content"></div>
+                    </div>
+                    <button class="btn btn-primary" id="confirm-save-template-btn">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Templates Modal -->
+        <div class="modal" id="manage-templates-modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>⚙️ テンプレート管理</h2>
+                    <button class="modal-close" id="close-manage-templates">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="templates-list" id="templates-list">
+                        <!-- Templates will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Batch Progress Modal -->
+        <div class="modal" id="batch-progress-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="batch-progress-title">⏳ 処理中...</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="batch-progress-info">
+                        <div class="progress-stats">
+                            <div class="progress-stat">
+                                <span class="progress-label">進捗:</span>
+                                <span class="progress-value" id="batch-progress-text">0 / 0</span>
+                            </div>
+                            <div class="progress-stat">
+                                <span class="progress-label">成功:</span>
+                                <span class="progress-value success" id="batch-success-count">0</span>
+                            </div>
+                            <div class="progress-stat">
+                                <span class="progress-label">失敗:</span>
+                                <span class="progress-value error" id="batch-failed-count">0</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="batch-progress-bar"></div>
+                        </div>
+                        <div class="progress-current" id="batch-current-item"></div>
+                    </div>
+                    <div class="batch-errors" id="batch-errors" style="display: none;">
+                        <h4>エラー詳細:</h4>
+                        <ul id="batch-error-list"></ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="batch-cancel-btn">キャンセル</button>
+                    <button class="btn btn-primary" id="batch-close-btn" style="display: none;">閉じる</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Modal -->
+        <div class="modal fullscreen-modal" id="history-modal">
+            <div class="fullscreen-modal-content">
+                <div class="fullscreen-header">
+                    <div class="fullscreen-title">
+                        <h2>📜 投稿履歴</h2>
+                    </div>
+                    <button class="modal-close" id="close-history-modal">&times;</button>
+                </div>
+
+                <div class="fullscreen-body">
+                    <div class="history-container">
+                        <div class="history-list" id="history-list">
+                            <!-- History items will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Action Bar -->
+        <div class="floating-action-bar" id="floating-action-bar">
+            <div class="fab-content">
+                <div class="fab-queue-info">
+                    <span class="fab-queue-count" id="fab-queue-count">0 / 10</span>
+                    <span class="fab-queue-label">投稿</span>
+                </div>
+                <div class="fab-actions">
+                    <button class="btn btn-ghost btn-fab" id="fab-batch-generate-btn" title="一括コメント生成">
+                        <span class="fab-icon">✨</span>
+                        <span class="fab-text">一括コメント生成</span>
+                    </button>
+                    <button class="btn btn-ghost btn-fab" id="fab-clear-all-btn" title="全てクリア">
+                        <span class="fab-icon">🗑️</span>
+                        <span class="fab-text">全てクリア</span>
+                    </button>
+                    <button class="btn btn-primary btn-fab" id="fab-send-all-btn" title="一括送信">
+                        <span class="fab-icon">📤</span>
+                        <span class="fab-text">一括送信</span>
+                    </button>
+                </div>
+            </div>
+            <button class="fab-toggle" id="fab-toggle" title="折りたたみ">
+                <span class="fab-toggle-icon">▼</span>
+            </button>
+        </div>
+
         <!-- Settings Button -->
         <button class="settings-btn" id="open-settings">⚙️</button>
 
@@ -317,7 +653,9 @@
         <div class="toast" id="toast"></div>
     </div>
 
-    <script src="app.js"></script>
+    <script type="module" src="batch-processor.js"></script>
+    <script type="module" src="batch-ui.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 
 </html>

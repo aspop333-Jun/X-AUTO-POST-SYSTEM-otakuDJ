@@ -1,46 +1,91 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 /**
- * ルールベースのフォールバック用テンプレート
+ * 拡張版テンプレートデータベース（comment-rules.jsと同期）
+ * 画像特徴に基づくコメント選択
  */
-const FALLBACK_TEMPLATES = {
-    '笑顔': [
-        '爽やかな笑顔がブースの雰囲気にぴったりでした✨',
-        '自然な笑顔がとても魅力的でした✨',
-        '明るい笑顔が会場を華やかにしていました✨',
-    ],
-    'クール': [
-        '凛とした表情がとても印象的でした✨',
-        'クールな雰囲気がブースの世界観に合っていました✨',
-        'シャープな表情が目を引きました✨',
-    ],
-    '柔らか': [
-        '柔らかな表情がとても魅力的でした✨',
-        '優しい雰囲気がブースに溶け込んでいました✨',
-        '穏やかな佇まいが印象的でした✨',
-    ],
-    '華やか': [
-        '華やかな存在感が際立っていました✨',
-        '輝くような雰囲気がブースを彩っていました✨',
-        '存在感のある佇まいが印象的でした✨',
-    ],
-    '自然': [
-        '自然体の佇まいがとても魅力的でした✨',
-        '落ち着いた雰囲気が会場に溶け込んでいました✨',
-        '飾らない雰囲気が素敵でした✨',
-    ],
-    '力強い': [
-        '力強い視線に引き込まれました✨',
-        '堂々とした佇まいがとても印象的でした✨',
-        '圧倒的な存在感が目を引きました✨',
-    ],
+const TEMPLATES = {
+    expressions: {
+        '笑顔': [
+            '爽やかな笑顔がとても印象的でした✨',
+            '自然な笑顔がブースの雰囲気にぴったりでした✨',
+            '柔らかな笑顔に思わず見入ってしまいました✨',
+            '優しい笑顔が会場を明るくしていました✨',
+            '明るい笑顔がとても魅力的でした✨',
+            'はじけるような笑顔が素敵でした✨',
+            '笑顔がライティングに映えていました✨',
+            'キラキラした笑顔が印象に残りました✨',
+            'チャーミングな笑顔でした✨',
+            '親しみやすい笑顔が素敵でした✨'
+        ],
+        'クール': [
+            '凛とした表情がとても印象的でした✨',
+            'クールな雰囲気がブースにマッチしていました✨',
+            'キリッとした表情に目を引かれました✨',
+            'シャープな視線が印象的でした✨',
+            '凛とした雰囲気が際立っていました✨',
+            'クールビューティーな雰囲気でした✨',
+            '知的な雰囲気が素敵でした✨',
+            'ミステリアスな雰囲気がありました✨',
+            '洗練された表情でした✨',
+            'エレガントでクールな印象でした✨'
+        ],
+        '柔らか': [
+            '柔らかな表情がとても魅力的でした✨',
+            '穏やかな雰囲気に癒されました✨',
+            '優しい表情がブースに溶け込んでいました✨',
+            '温かみのある表情でした✨',
+            'ふんわりとした雰囲気が素敵でした✨',
+            '優しい眼差しに引き込まれました✨',
+            '柔らかなオーラがありました✨',
+            '癒し系の雰囲気が素敵でした✨',
+            'ナチュラルな柔らかさでした✨',
+            '柔和な雰囲気がブースにマッチしていました✨'
+        ],
+        '華やか': [
+            '華やかな存在感が際立っていました✨',
+            '存在感のある佇まいでした✨',
+            '華やかな雰囲気がブースを彩っていました✨',
+            '輝くような雰囲気が印象的でした✨',
+            '目を引く華やかさがありました✨',
+            '艶やかな雰囲気が素敵でした✨',
+            'オーラが際立っていました✨',
+            'スター性を感じました✨',
+            '華やかさと品が両立していました✨',
+            'グラマラスな雰囲気が素敵でした✨'
+        ],
+        '自然': [
+            '自然体の佇まいがとても魅力的でした✨',
+            '落ち着いた雰囲気が素敵でした✨',
+            '自然な表情に好感が持てました✨',
+            'リラックスした雰囲気が良かったです✨',
+            '飾らない魅力がありました✨',
+            '等身大の雰囲気が素敵でした✨',
+            'ナチュラルな良さがありました✨',
+            '気取らない雰囲気が素敵でした✨',
+            'ナチュラルビューティーでした✨',
+            '自然体が一番輝いていました✨'
+        ],
+        '力強い': [
+            '力強い視線に引き込まれました✨',
+            '印象的な眼差しでした✨',
+            '強い存在感がありました✨',
+            '堂々とした佇まいが素敵でした✨',
+            '迫力のある表情でした✨',
+            'パワフルな雰囲気が印象的でした✨',
+            '圧倒的な存在感でした✨',
+            'エネルギッシュな雰囲気でした✨',
+            '力強い眼差しが印象に残りました✨',
+            '堂々とした姿が素敵でした✨'
+        ]
+    }
 };
 
 /**
- * ルールベースでフォールバックコメントを生成
+ * 特徴に基づいてテンプレートを選択
  */
-function generateFallbackComment(expressionType) {
-    const templates = FALLBACK_TEMPLATES[expressionType] || FALLBACK_TEMPLATES['笑顔'];
+function selectTemplate(expressionType) {
+    const templates = TEMPLATES.expressions[expressionType] || TEMPLATES.expressions['笑顔'];
     return templates[Math.floor(Math.random() * templates.length)];
 }
 
@@ -122,8 +167,8 @@ exports.handler = async (event, context) => {
 
         // API未設定の場合はルールベースで生成
         if (!apiKey) {
-            console.log('No API key configured, using fallback');
-            const comment = generateFallbackComment(data.expression_type || '笑顔');
+            console.log('No API key configured, using rule-based templates');
+            const comment = selectTemplate(data.expression_type || '笑顔');
             return {
                 statusCode: 200,
                 headers,
@@ -131,9 +176,9 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Gemini API呼び出し (Gemini 2.5 Flash - 最新の画像解析対応モデル)
+        // Gemini API呼び出し (Gemini 1.5 Flash - 高速・マルチモーダル安定版)
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-05-20' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
 
         const hasImage = !!data.image_base64;
         const prompt = buildPrompt(data, hasImage);
@@ -175,9 +220,9 @@ exports.handler = async (event, context) => {
     } catch (error) {
         console.error('Gemini API error:', error);
 
-        // エラー時はフォールバック
+        // エラー時はルールベーステンプレートを使用
         const data = JSON.parse(event.body || '{}');
-        const comment = generateFallbackComment(data.expression_type || '笑顔');
+        const comment = selectTemplate(data.expression_type || '笑顔');
 
         return {
             statusCode: 200,
