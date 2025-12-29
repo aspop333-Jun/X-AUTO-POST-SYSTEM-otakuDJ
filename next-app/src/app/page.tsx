@@ -4,16 +4,18 @@ import { useState } from "react";
 import { DropZone } from "@/components/dashboard/DropZone";
 import { QueueList } from "@/components/dashboard/QueueList";
 import { ImportModal } from "@/components/dashboard/ImportModal";
+import { SettingsPanel } from "@/components/dashboard/SettingsPanel";
 import EditorPage from "@/components/editor/EditorPage";
 import { useAppStore } from "@/store/useAppStore";
 import { useHydration } from "@/hooks/useHydration";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, Settings } from "lucide-react";
 
 export default function Home() {
   // All hooks must be called before any conditional returns
   const hydrated = useHydration();
-  const { currentStep } = useAppStore();
+  const { currentStep, settings } = useAppStore();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Prevent hydration mismatch by showing loading state until client is ready
   if (!hydrated) {
@@ -40,13 +42,27 @@ export default function Home() {
             Manage your post queue and events
           </p>
         </div>
-        <button
-          onClick={() => setIsImportModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-white/10 border border-white/10 rounded-lg transition-all text-sm font-medium"
-        >
-          <Upload className="w-4 h-4" />
-          Import Text
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Settings Button */}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className={`relative flex items-center gap-2 px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-white/10 border border-white/10 rounded-lg transition-all text-sm font-medium ${!settings.makeWebhookUrl ? 'ring-2 ring-yellow-500/50' : ''}`}
+            title="設定"
+          >
+            <Settings className="w-4 h-4" />
+            設定
+            {!settings.makeWebhookUrl && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full animate-pulse" />
+            )}
+          </button>
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-white/10 border border-white/10 rounded-lg transition-all text-sm font-medium"
+          >
+            <Upload className="w-4 h-4" />
+            Import Text
+          </button>
+        </div>
       </div>
 
       {/* Main Content Grid */}
@@ -79,6 +95,11 @@ export default function Home() {
       <ImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
+      />
+
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );

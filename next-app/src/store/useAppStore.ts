@@ -70,11 +70,21 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>()(
-
-    (set) => ({
-        currentStep: 1,
-        settings: {
-            defaultEventInfo: {
+    persist(
+        (set) => ({
+            currentStep: 1,
+            settings: {
+                defaultEventInfo: {
+                    eventEn: '',
+                    eventJp: '',
+                    date: '',
+                    venue: '',
+                    category: 'ブース',
+                    hashtags: ''
+                },
+                makeWebhookUrl: ''
+            },
+            eventInfo: {
                 eventEn: '',
                 eventJp: '',
                 date: '',
@@ -82,48 +92,48 @@ export const useAppStore = create<AppState>()(
                 category: 'ブース',
                 hashtags: ''
             },
-            makeWebhookUrl: ''
-        },
-        eventInfo: {
-            eventEn: '',
-            eventJp: '',
-            date: '',
-            venue: '',
-            category: 'ブース',
-            hashtags: ''
-        },
-        postQueue: [],
-        currentEditIndex: null,
+            postQueue: [],
+            currentEditIndex: null,
 
-        setStep: (step) => set({ currentStep: step }),
-        setEventInfo: (info) => set((state) => ({
-            eventInfo: { ...state.eventInfo, ...info }
-        })),
-        addToQueue: (postData) => set((state) => {
-            const newPost: PostItem = {
-                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                ...postData,
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-            };
-            return { postQueue: [...state.postQueue, newPost] };
+            setStep: (step) => set({ currentStep: step }),
+            setEventInfo: (info) => set((state) => ({
+                eventInfo: { ...state.eventInfo, ...info }
+            })),
+            addToQueue: (postData) => set((state) => {
+                const newPost: PostItem = {
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                    ...postData,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                };
+                return { postQueue: [...state.postQueue, newPost] };
+            }),
+            updateQueueItem: (index, updates) => set((state) => {
+                const newQueue = [...state.postQueue];
+                if (newQueue[index]) {
+                    newQueue[index] = { ...newQueue[index], ...updates, updatedAt: Date.now() };
+                }
+                return { postQueue: newQueue };
+            }),
+            removeFromQueue: (index) => set((state) => {
+                const newQueue = [...state.postQueue];
+                newQueue.splice(index, 1);
+                return { postQueue: newQueue };
+            }),
+            setCurrentEditIndex: (index) => set({ currentEditIndex: index }),
+            clearQueue: () => set({ postQueue: [], currentEditIndex: null }),
+            setSettings: (newSettings) => set((state) => ({
+                settings: { ...state.settings, ...newSettings }
+            })),
         }),
-        updateQueueItem: (index, updates) => set((state) => {
-            const newQueue = [...state.postQueue];
-            if (newQueue[index]) {
-                newQueue[index] = { ...newQueue[index], ...updates, updatedAt: Date.now() };
-            }
-            return { postQueue: newQueue };
-        }),
-        removeFromQueue: (index) => set((state) => {
-            const newQueue = [...state.postQueue];
-            newQueue.splice(index, 1);
-            return { postQueue: newQueue };
-        }),
-        setCurrentEditIndex: (index) => set({ currentEditIndex: index }),
-        clearQueue: () => set({ postQueue: [], currentEditIndex: null }),
-        setSettings: (newSettings) => set((state) => ({
-            settings: { ...state.settings, ...newSettings }
-        })),
-    })
+        {
+            name: 'x-auto-post-storage',
+            storage: createJSONStorage(() => localStorage),
+            partialize: (state) => ({
+                settings: state.settings,
+                eventInfo: state.eventInfo,
+                // Note: postQueue is intentionally NOT persisted to avoid large localStorage usage
+            }),
+        }
+    )
 );
