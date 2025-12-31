@@ -3,18 +3,17 @@
 import { useState } from "react";
 import { DropZone } from "@/components/dashboard/DropZone";
 import { QueueList } from "@/components/dashboard/QueueList";
-import { ImportModal } from "@/components/dashboard/ImportModal";
+import { EventInfoPanel } from "@/components/dashboard/EventInfoPanel";
 import { SettingsPanel } from "@/components/dashboard/SettingsPanel";
 import EditorPage from "@/components/editor/EditorPage";
 import { useAppStore } from "@/store/useAppStore";
 import { useHydration } from "@/hooks/useHydration";
-import { Upload, Loader2, Settings } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 
 export default function Home() {
   // All hooks must be called before any conditional returns
   const hydrated = useHydration();
-  const { currentStep, settings } = useAppStore();
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const { currentStep, settings, postQueue } = useAppStore();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Prevent hydration mismatch by showing loading state until client is ready
@@ -39,7 +38,7 @@ export default function Home() {
             Dashboard
           </h1>
           <p className="text-[var(--text-secondary)] mt-1">
-            Manage your post queue and events
+            イベント写真を簡単に投稿準備
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -55,25 +54,20 @@ export default function Home() {
               <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full animate-pulse" />
             )}
           </button>
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-white/10 border border-white/10 rounded-lg transition-all text-sm font-medium"
-          >
-            <Upload className="w-4 h-4" />
-            Import Text
-          </button>
         </div>
       </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Input */}
-        <div className="lg:col-span-2 space-y-8">
+        {/* Left Column: Input Flow */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Step 1: Event Info */}
           <section>
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <span className="w-2 h-8 rounded-full bg-[var(--accent-primary)]" />
-              Upload Photos
-            </h2>
+            <EventInfoPanel />
+          </section>
+
+          {/* Step 2: Photo Upload */}
+          <section>
             <DropZone />
           </section>
         </div>
@@ -82,20 +76,15 @@ export default function Home() {
         <div className="lg:col-span-1">
           <section className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-white/5 h-full">
             <h2 className="text-lg font-semibold mb-6 flex items-center justify-between">
-              <span>Post Queue</span>
+              <span>投稿キュー</span>
               <span className="text-xs bg-[var(--bg-tertiary)] px-2 py-1 rounded text-[var(--accent-primary)]">
-                Ready
+                {postQueue.length} / 10
               </span>
             </h2>
             <QueueList />
           </section>
         </div>
       </div>
-
-      <ImportModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-      />
 
       <SettingsPanel
         isOpen={isSettingsOpen}
@@ -104,3 +93,4 @@ export default function Home() {
     </div>
   );
 }
+

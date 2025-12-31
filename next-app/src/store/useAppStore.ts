@@ -58,6 +58,10 @@ interface AppState {
     postQueue: PostItem[];
     currentEditIndex: number | null;
 
+    // Event-first workflow
+    isEventInfoSet: boolean;
+    currentEventInfo: EventInfo;
+
     // Actions
     setStep: (step: number) => void;
     setEventInfo: (info: Partial<EventInfo>) => void;
@@ -67,6 +71,10 @@ interface AppState {
     setCurrentEditIndex: (index: number | null) => void;
     clearQueue: () => void;
     setSettings: (settings: Partial<AppSettings>) => void;
+
+    // Event-first workflow actions
+    setCurrentEventInfo: (info: EventInfo) => void;
+    clearCurrentEventInfo: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -94,6 +102,17 @@ export const useAppStore = create<AppState>()(
             },
             postQueue: [],
             currentEditIndex: null,
+
+            // Event-first workflow state
+            isEventInfoSet: false,
+            currentEventInfo: {
+                eventEn: '',
+                eventJp: '',
+                date: '',
+                venue: '',
+                category: 'ブース',
+                hashtags: ''
+            },
 
             setStep: (step) => set({ currentStep: step }),
             setEventInfo: (info) => set((state) => ({
@@ -125,6 +144,24 @@ export const useAppStore = create<AppState>()(
             setSettings: (newSettings) => set((state) => ({
                 settings: { ...state.settings, ...newSettings }
             })),
+
+            // Event-first workflow actions
+            setCurrentEventInfo: (info) => set({
+                currentEventInfo: info,
+                isEventInfoSet: true,
+                eventInfo: info // Also update the legacy eventInfo for compatibility
+            }),
+            clearCurrentEventInfo: () => set({
+                isEventInfoSet: false,
+                currentEventInfo: {
+                    eventEn: '',
+                    eventJp: '',
+                    date: '',
+                    venue: '',
+                    category: 'ブース',
+                    hashtags: ''
+                }
+            }),
         }),
         {
             name: 'x-auto-post-storage',

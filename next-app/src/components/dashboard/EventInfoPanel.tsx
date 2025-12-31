@@ -1,0 +1,321 @@
+"use client";
+
+import { useState } from "react";
+import { Calendar, MapPin, Hash, FileText, Check, X, ChevronDown, ChevronUp } from "lucide-react";
+import { useAppStore, EventInfo } from "@/store/useAppStore";
+import { cn } from "@/utils/cn";
+
+interface EventInfoPanelProps {
+    className?: string;
+}
+
+export function EventInfoPanel({ className }: EventInfoPanelProps) {
+    const { isEventInfoSet, currentEventInfo, setCurrentEventInfo, clearCurrentEventInfo } = useAppStore();
+    const [isEditing, setIsEditing] = useState(!isEventInfoSet);
+    const [inputText, setInputText] = useState("");
+    const [showAdvanced, setShowAdvanced] = useState(false);
+
+    // Form state for direct editing
+    const [formData, setFormData] = useState<EventInfo>({
+        eventEn: currentEventInfo.eventEn || "",
+        eventJp: currentEventInfo.eventJp || "",
+        date: currentEventInfo.date || "",
+        venue: currentEventInfo.venue || "",
+        category: currentEventInfo.category || "ブース",
+        hashtags: currentEventInfo.hashtags || "",
+    });
+
+    // Parse pasted text to extract event info
+    const parseEventText = (text: string): Partial<EventInfo> => {
+        const result: Partial<EventInfo> = {};
+        const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+
+        for (const line of lines) {
+            // Date patterns
+            const dateMatch = line.match(/(\d{4}[.\/\-]\d{1,2}[.\/\-]\d{1,2})/);
+            if (dateMatch) {
+                result.date = dateMatch[1];
+            }
+
+            // Hashtags
+            const hashtagMatch = line.match(/((?:#[^\s#]+\s*)+)/);
+            if (hashtagMatch) {
+                result.hashtags = hashtagMatch[1].trim();
+            }
+
+            // Event name (English - usually contains only ASCII)
+            if (/^[A-Za-z0-9\s\-_&'".!]+$/.test(line) && line.length > 3 && !result.eventEn) {
+                result.eventEn = line;
+            }
+
+            // Event name (Japanese)
+            if (/[\u3040-\u30ff\u3400-\u9fff]/.test(line) && line.length > 2 && !result.eventJp) {
+                // Skip if it looks like a venue/location
+                if (!line.includes("会場") && !line.includes("ホール") && !line.includes("センター")) {
+                    result.eventJp = line;
+                }
+            }
+
+            // Venue
+            if (line.includes("会場") || line.includes("ホール") || line.includes("センター") || line.includes("ビッグサイト")) {
+                result.venue = line.replace(/^.*?[：:]/, "").trim() || line;
+            }
+        }
+
+        return result;
+    };
+
+    const handlePasteAndParse = () => {
+        if (!inputText.trim()) return;
+
+        const parsed = parseEventText(inputText);
+        setFormData(prev => ({
+            ...prev,
+            ...parsed,
+        }));
+        setShowAdvanced(true);
+    };
+
+    const handleConfirm = () => {
+        // Validate minimum required info
+        if (!formData.eventEn && !formData.eventJp) {
+            return;
+        }
+
+        setCurrentEventInfo(formData);
+        setIsEditing(false);
+    };
+
+    const handleEdit = () => {
+        setFormData({
+            eventEn: currentEventInfo.eventEn || "",
+            eventJp: currentEventInfo.eventJp || "",
+            date: currentEventInfo.date || "",
+            venue: currentEventInfo.venue || "",
+            category: currentEventInfo.category || "ブース",
+            hashtags: currentEventInfo.hashtags || "",
+        });
+        setIsEditing(true);
+    };
+
+    const handleClear = () => {
+        clearCurrentEventInfo();
+        setFormData({
+            eventEn: "",
+            eventJp: "",
+            date: "",
+            venue: "",
+            category: "ブース",
+            hashtags: "",
+        });
+        setInputText("");
+        setIsEditing(true);
+        setShowAdvanced(false);
+    };
+
+    // Display mode - show current event info
+    if (isEventInfoSet && !isEditing) {
+        return (
+            <div className={cn(
+                "bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-2xl p-6 border border-emerald-500/30",
+                className
+            )}>
+                <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                            <Check className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-white">イベント情報設定済み</h3>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleEdit}
+                            className="text-sm px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                        >
+                            編集
+                        </button>
+                        <button
+                            onClick={handleClear}
+                            className="text-sm px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+                        >
+                            クリア
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="col-span-2">
+                        <span className="text-[var(--text-muted)] text-xs">イベント名</span>
+                        <p className="text-white font-medium">
+                            {currentEventInfo.eventJp || currentEventInfo.eventEn || "-"}
+                        </p>
+                        {currentEventInfo.eventJp && currentEventInfo.eventEn && (
+                            <p className="text-[var(--text-secondary)] text-xs">{currentEventInfo.eventEn}</p>
+                        )}
+                    </div>
+                    {currentEventInfo.date && (
+                        <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-[var(--text-muted)]" />
+                            <span>{currentEventInfo.date}</span>
+                        </div>
+                    )}
+                    {currentEventInfo.venue && (
+                        <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-[var(--text-muted)]" />
+                            <span>{currentEventInfo.venue}</span>
+                        </div>
+                    )}
+                    {currentEventInfo.hashtags && (
+                        <div className="col-span-2 flex items-center gap-2">
+                            <Hash className="w-4 h-4 text-[var(--accent-primary)]" />
+                            <span className="text-[var(--accent-primary)]">{currentEventInfo.hashtags}</span>
+                        </div>
+                    )}
+                </div>
+
+                <p className="text-xs text-emerald-400 mt-4">
+                    ✓ 写真をドロップできます
+                </p>
+            </div>
+        );
+    }
+
+    // Editing mode - input form
+    return (
+        <div className={cn(
+            "bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-2xl p-6 border-2 border-dashed border-indigo-500/50",
+            className
+        )}>
+            <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-indigo-400" />
+                </div>
+                <div>
+                    <h3 className="text-lg font-semibold text-white">① イベント情報を入力</h3>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                        HPからコピペするだけでOK！
+                    </p>
+                </div>
+            </div>
+
+            {/* Paste area */}
+            <div className="mb-4">
+                <textarea
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder="イベントHPからコピーしたテキストを貼り付け...
+
+例:
+Tokyo Game Show 2025
+東京ゲームショウ2025
+2025/9/26-28
+幕張メッセ
+#TGS2025 #東京ゲームショウ"
+                    className="w-full h-32 bg-[var(--bg-tertiary)] border border-white/10 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] resize-none text-sm"
+                />
+                <button
+                    onClick={handlePasteAndParse}
+                    disabled={!inputText.trim()}
+                    className="mt-2 w-full py-2 bg-indigo-500/30 hover:bg-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+                >
+                    テキストを解析
+                </button>
+            </div>
+
+            {/* Manual input toggle */}
+            <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-white transition-colors mb-4"
+            >
+                {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                手動で入力・編集
+            </button>
+
+            {/* Manual input fields */}
+            {showAdvanced && (
+                <div className="space-y-3 mb-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs text-[var(--text-muted)] mb-1 block">イベント名（日本語）</label>
+                            <input
+                                type="text"
+                                value={formData.eventJp}
+                                onChange={(e) => setFormData(prev => ({ ...prev, eventJp: e.target.value }))}
+                                placeholder="東京ゲームショウ2025"
+                                className="w-full bg-[var(--bg-tertiary)] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-[var(--text-muted)] mb-1 block">Event Name (English)</label>
+                            <input
+                                type="text"
+                                value={formData.eventEn}
+                                onChange={(e) => setFormData(prev => ({ ...prev, eventEn: e.target.value }))}
+                                placeholder="Tokyo Game Show 2025"
+                                className="w-full bg-[var(--bg-tertiary)] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs text-[var(--text-muted)] mb-1 block">日付</label>
+                            <input
+                                type="text"
+                                value={formData.date}
+                                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                                placeholder="2025/9/26"
+                                className="w-full bg-[var(--bg-tertiary)] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-[var(--text-muted)] mb-1 block">会場</label>
+                            <input
+                                type="text"
+                                value={formData.venue}
+                                onChange={(e) => setFormData(prev => ({ ...prev, venue: e.target.value }))}
+                                placeholder="幕張メッセ"
+                                className="w-full bg-[var(--bg-tertiary)] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-xs text-[var(--text-muted)] mb-1 block">ハッシュタグ</label>
+                        <input
+                            type="text"
+                            value={formData.hashtags}
+                            onChange={(e) => setFormData(prev => ({ ...prev, hashtags: e.target.value }))}
+                            placeholder="#TGS2025 #東京ゲームショウ"
+                            className="w-full bg-[var(--bg-tertiary)] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
+                <button
+                    onClick={handleConfirm}
+                    disabled={!formData.eventEn && !formData.eventJp}
+                    className="flex-1 py-3 bg-[var(--accent-primary)] hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                    <Check className="w-4 h-4" />
+                    イベント情報を確定
+                </button>
+                {isEventInfoSet && (
+                    <button
+                        onClick={() => setIsEditing(false)}
+                        className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
+
+            <p className="text-xs text-amber-400 mt-4 text-center">
+                ⚠ イベント情報を入力してから写真を追加できます
+            </p>
+        </div>
+    );
+}
