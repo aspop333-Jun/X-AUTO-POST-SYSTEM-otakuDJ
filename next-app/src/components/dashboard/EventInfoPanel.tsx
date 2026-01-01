@@ -50,6 +50,10 @@ export function EventInfoPanel({ className }: EventInfoPanelProps) {
 
         const parsedHashtags: string[] = [];
 
+        // テキスト全体から年を抽出（フォールバック用）
+        const yearMatch = text.match(/(\d{4})年/);
+        const fallbackYear = yearMatch ? yearMatch[1] : new Date().getFullYear().toString();
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
 
@@ -60,18 +64,65 @@ export function EventInfoPanel({ className }: EventInfoPanelProps) {
                 const month = japDateMatch[2];
                 const startDay = japDateMatch[3];
 
-                // 日付の後に追加の日があるか確認（▶10, →11 など）
+                // 日付の後に追加の日があるか確認
                 const restOfLine = line.slice(japDateMatch.index! + japDateMatch[0].length);
+
+                // 月をまたぐ日付範囲（〜11月9日）をチェック
+                const crossMonthMatch = restOfLine.match(/[▶→～〜\-−–]\s*(\d{1,2})月(\d{1,2})/);
+                if (crossMonthMatch) {
+                    const endMonth = crossMonthMatch[1];
+                    const endDay = crossMonthMatch[2];
+                    result.date = `${year}.${month}.${startDay}～${endMonth}.${endDay}`;
+                } else {
+                    // 同月内の追加日（▶10, →11 など）
+                    const additionalDays = restOfLine.match(/[▶→～〜\-−–]\s*(\d{1,2})/g);
+
+                    if (additionalDays && additionalDays.length > 0) {
+                        // 最後の追加日を取得
+                        const lastDayMatch = additionalDays[additionalDays.length - 1].match(/(\d{1,2})/);
+                        const endDay = lastDayMatch ? lastDayMatch[1] : startDay;
+                        result.date = `${year}.${month}.${startDay}～${endDay}`;
+                    } else {
+                        result.date = `${year}.${month}.${startDay}`;
+                    }
+                }
+            }
+
+            // 年+スラッシュ形式の日付パース（2026年1/9(金) ▶ 10(土) ▶ 11(日)）
+            const japSlashDateMatch = line.match(/(\d{4})年(\d{1,2})\/(\d{1,2})\s*\([土日月火水木金祝]\)/);
+            if (japSlashDateMatch && !result.date) {
+                const year = japSlashDateMatch[1];
+                const month = japSlashDateMatch[2];
+                const startDay = japSlashDateMatch[3];
+
+                // 追加の日を確認（▶ 10(土) ▶ 11(日) など）
+                const restOfLine = line.slice(japSlashDateMatch.index! + japSlashDateMatch[0].length);
                 const additionalDays = restOfLine.match(/[▶→～〜\-−–]\s*(\d{1,2})/g);
 
                 if (additionalDays && additionalDays.length > 0) {
-                    // 最後の追加日を取得
                     const lastDayMatch = additionalDays[additionalDays.length - 1].match(/(\d{1,2})/);
                     const endDay = lastDayMatch ? lastDayMatch[1] : startDay;
                     result.date = `${year}.${month}.${startDay}～${endDay}`;
                 } else {
                     result.date = `${year}.${month}.${startDay}`;
                 }
+            }
+
+            // 年なし日付形式のパース（6月28日(土)-29日(日)）
+            const japDateNoYearMatch = line.match(/(\d{1,2})月(\d{1,2})日?\s*\([土日月火水木金祝]\)\s*[-−–～〜]\s*(\d{1,2})/);
+            if (japDateNoYearMatch && !result.date) {
+                const month = japDateNoYearMatch[1];
+                const startDay = japDateNoYearMatch[2];
+                const endDay = japDateNoYearMatch[3];
+                result.date = `${fallbackYear}.${month}.${startDay}～${endDay}`;
+            }
+
+            // 年なし単一日付（6月28日(土)）
+            const japDateNoYearSingleMatch = line.match(/(\d{1,2})月(\d{1,2})日?\s*\([土日月火水木金祝]\)/);
+            if (japDateNoYearSingleMatch && !result.date && !japDateNoYearMatch) {
+                const month = japDateNoYearSingleMatch[1];
+                const day = japDateNoYearSingleMatch[2];
+                result.date = `${fallbackYear}.${month}.${day}`;
             }
 
             // Date patterns: 2025.09.25 - 28 or 2025/9/26-28（洋式日付範囲）
@@ -104,14 +155,24 @@ export function EventInfoPanel({ className }: EventInfoPanelProps) {
 
             // Explicit Venue line
             if (venueKeywords.some(k => line.includes(k)) && !result.venue) {
-                // If the line IS just the keyword (e.g. "幕張メッセ"), use it.
-                if (venueKeywords.some(k => line === k)) {
+                // 「会場」「Venue」単独の行は無視して、次の行をチェック
+                if (/^(会場|Venue|Place)\s*[：:]?\s*$/.test(line)) {
+                    // 次の行があれば会場として使用
+                    if (i + 1 < lines.length) {
+                        const nextLine = lines[i + 1];
+                        // 次の行が会場名っぽければ使用
+                        if (nextLine.length > 1 && nextLine.length < 30 && !/\d{4}年/.test(nextLine)) {
+                            result.venue = nextLine;
+                        }
+                    }
+                } else if (venueKeywords.some(k => line === k)) {
+                    // If the line IS just the venue name (e.g. "幕張メッセ"), use it.
                     result.venue = line;
                 } else {
-                    // Try to strip standard prefixes "Venue: ..."
+                    // Try to strip standard prefixes "会場: ..."
                     const clean = line.replace(/^(会場|Venue|Place)[\s：:]+/, "").trim();
                     // Heuristic: if the line was long and we just stripped a prefix, it might be the venue
-                    if (clean.length < 30) {
+                    if (clean.length > 1 && clean.length < 30) {
                         result.venue = clean;
                     }
                 }
@@ -131,8 +192,8 @@ export function EventInfoPanel({ className }: EventInfoPanelProps) {
             }
 
             // Event name (Japanese)
-            // 日付パターンを含む行は除外
-            const isDateLine = /\d{4}年\d{1,2}月\d{1,2}/.test(line);
+            // 日付パターンを含む行は除外（2026年1月9日 または 2026年1/9 形式）
+            const isDateLine = /\d{4}年\d{1,2}[月\/]\d{1,2}/.test(line) || /\d{1,2}月\d{1,2}日?\s*\([土日月火水木金祝]\)/.test(line);
             if (/[\u3040-\u30ff\u3400-\u9fff]/.test(line) && line.length > 2 && !result.eventJp && !isDateLine) {
                 // Skip if it looks like a venue/location
                 if (!venueKeywords.some(k => line.includes(k))) {
@@ -214,10 +275,15 @@ export function EventInfoPanel({ className }: EventInfoPanelProps) {
         if (!inputText.trim()) return;
 
         const parsed = parseEventText(inputText);
-        setFormData(prev => ({
-            ...prev,
-            ...parsed,
-        }));
+        // 完全にリセットしてから新しい値を設定（前の値が残らないようにする）
+        setFormData({
+            eventJp: parsed.eventJp || '',
+            eventEn: parsed.eventEn || '',
+            date: parsed.date || '',
+            venue: parsed.venue || '',
+            hashtags: parsed.hashtags || '#イベントコンパニオン',
+            category: parsed.category || 'イベントコンパニオン',
+        });
         setShowAdvanced(true);
     };
 

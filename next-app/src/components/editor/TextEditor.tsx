@@ -46,7 +46,7 @@ export function TextEditor() {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const emojiButtonRef = useRef<HTMLButtonElement>(null);
 
-    // Kotaro-Engine 18文字コメント生成
+    // Kotaro-Engine 22文字コメント生成
     const generateKotaroComment = async () => {
         if (!post.images?.[0] && !post.imageBase64) {
             showToast({ type: 'error', title: '画像がありません' });
@@ -55,7 +55,7 @@ export function TextEditor() {
         // 人物名はオプショナル（必須ではない）
 
         setIsGenerating(true);
-        const toastId = showToast({ type: 'loading', title: '🐯 Kotaro生成中...', message: '18文字コメントを作成しています' });
+        const toastId = showToast({ type: 'loading', title: '🐯 Kotaro生成中...', message: '22文字コメントを作成しています' });
 
         try {
             const imageBase64 = post.images?.[0] || post.imageBase64;
@@ -253,7 +253,7 @@ export function TextEditor() {
                                 ? "bg-amber-500/20 text-amber-300 cursor-wait"
                                 : "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-amber-200"
                         )}
-                        title="🐯 Kotaro AI で18文字コメント生成"
+                        title="🐯 Kotaro AI で22文字コメント生成"
                     >
                         {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                         <span>🐯 AI</span>

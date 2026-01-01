@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Kotaro-Engine API - 18文字コメント生成
+ * Kotaro-Engine API - 22文字コメント生成
  *
  * POST /api/kotaro
  * Body: FormData { image: File, name: string, count: number }
