@@ -26,8 +26,13 @@
 ### ステップ2: 依存関係をインストール
 
 ```bash
-run setup
+run.bat setup
 ```
+
+> **注意**: 「'run' は認識されていません」と出る場合は、代わりに以下を入力してください：
+> ```powershell
+> .\run.bat setup
+> ```
 
 これで必要なパッケージがすべてインストールされます。
 （初回は数分かかることがあります）
@@ -35,8 +40,10 @@ run setup
 ### ステップ3: アプリを起動
 
 ```bash
-run app
+run.bat app
 ```
+
+> **注意**: うまくいかない場合は `.\run.bat app` を試してください。
 
 ブラウザで http://localhost:3000 を開くとアプリが表示されます。
 
@@ -46,12 +53,12 @@ run app
 
 | コマンド | 説明 |
 |---------|------|
-| `run help` | コマンド一覧を表示 |
-| `run setup` | 依存関係をインストール |
-| `run app` | アプリを起動 |
-| `run status` | 環境状態を確認 |
-| `run clean` | node_modules を削除 |
-| `run reset` | クリーン + 再インストール |
+| `run.bat help` | コマンド一覧を表示 |
+| `run.bat setup` | 依存関係をインストール |
+| `run.bat app` | アプリを起動 |
+| `run.bat status` | 環境状態を確認 |
+| `run.bat clean` | node_modules を削除 |
+| `run.bat reset` | クリーン + 再インストール |
 
 ---
 

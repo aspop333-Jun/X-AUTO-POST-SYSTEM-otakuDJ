@@ -1,0 +1,15 @@
+# Kotaro-Engine 依存パッケージ
+
+# OllamaクライアントおよびAPI
+ollama>=0.1.0
+
+# FastAPI サーバー
+fastapi>=0.100.0
+uvicorn>=0.22.0
+python-multipart>=0.0.6
+
+# 画像処理
+opencv-python>=4.8.0
+
+# MediaPipe（オプション）
+mediapipe>=0.10.0

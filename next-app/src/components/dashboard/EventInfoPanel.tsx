@@ -53,17 +53,49 @@ export function EventInfoPanel({ className }: EventInfoPanelProps) {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
 
-            // Date patterns: 2025.09.25 or 2025/9/26-28
-            const dateMatch = line.match(/(\d{4}[.\/\-]\d{1,2}[.\/\-]\d{1,2})/);
-            if (dateMatch) {
-                result.date = dateMatch[1];
+            // 日本語形式の日付パース（2026年1月9日(金)▶10(土)▶11(日)）
+            const japDateMatch = line.match(/(\d{4})年(\d{1,2})月(\d{1,2})/);
+            if (japDateMatch && !result.date) {
+                const year = japDateMatch[1];
+                const month = japDateMatch[2];
+                const startDay = japDateMatch[3];
 
-                // Check if venue is on the same line after the date (e.g. "2025.09.25 - 28 幕張メッセ")
-                // Replace the date part and check remaining text
-                const afterDate = line.replace(/.*?(\d{4}[.\/\-]\d{1,2}[.\/\-]\d{1,2}(?:[-\s]*\d{1,2})?)/, "").trim();
+                // 日付の後に追加の日があるか確認（▶10, →11 など）
+                const restOfLine = line.slice(japDateMatch.index! + japDateMatch[0].length);
+                const additionalDays = restOfLine.match(/[▶→～〜\-−–]\s*(\d{1,2})/g);
+
+                if (additionalDays && additionalDays.length > 0) {
+                    // 最後の追加日を取得
+                    const lastDayMatch = additionalDays[additionalDays.length - 1].match(/(\d{1,2})/);
+                    const endDay = lastDayMatch ? lastDayMatch[1] : startDay;
+                    result.date = `${year}.${month}.${startDay}～${endDay}`;
+                } else {
+                    result.date = `${year}.${month}.${startDay}`;
+                }
+            }
+
+            // Date patterns: 2025.09.25 - 28 or 2025/9/26-28（洋式日付範囲）
+            const dateRangeMatch = line.match(/(\d{4}[.\/]\d{1,2}[.\/]\d{1,2})\s*[-−–～〜]\s*(\d{1,2})/);
+            const dateSingleMatch = line.match(/(\d{4}[.\/\-]\d{1,2}[.\/\-]\d{1,2})/);
+
+            if (dateRangeMatch && !result.date) {
+                // 日付範囲: "2025.09.25 - 28" → "2025.09.25～28"
+                result.date = `${dateRangeMatch[1]}～${dateRangeMatch[2]}`;
+
+                // 範囲の後に会場があるか確認
+                const afterDate = line.replace(/\d{4}[.\/]\d{1,2}[.\/]\d{1,2}\s*[-−–～〜]\s*\d{1,2}/, "").trim();
+                if (afterDate.length > 2 && !result.venue) {
+                    if (venueKeywords.some(k => afterDate.includes(k)) || afterDate.length < 20) {
+                        result.venue = afterDate;
+                    }
+                }
+            } else if (dateSingleMatch && !result.date) {
+                result.date = dateSingleMatch[1];
+
+                // Check if venue is on the same line after the date
+                const afterDate = line.replace(/.*?(\d{4}[.\/\-]\d{1,2}[.\/\-]\d{1,2})/, "").trim();
 
                 if (afterDate.length > 2 && !result.venue) {
-                    // If contains venue keywords or looks like a place
                     if (venueKeywords.some(k => afterDate.includes(k)) || afterDate.length < 20) {
                         result.venue = afterDate;
                     }
@@ -99,7 +131,9 @@ export function EventInfoPanel({ className }: EventInfoPanelProps) {
             }
 
             // Event name (Japanese)
-            if (/[\u3040-\u30ff\u3400-\u9fff]/.test(line) && line.length > 2 && !result.eventJp) {
+            // 日付パターンを含む行は除外
+            const isDateLine = /\d{4}年\d{1,2}月\d{1,2}/.test(line);
+            if (/[\u3040-\u30ff\u3400-\u9fff]/.test(line) && line.length > 2 && !result.eventJp && !isDateLine) {
                 // Skip if it looks like a venue/location
                 if (!venueKeywords.some(k => line.includes(k))) {
                     result.eventJp = line;
