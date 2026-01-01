@@ -52,7 +52,16 @@ export class WebhookService {
         const boothName = post.boothName;
 
         // Basic template
-        const baseText = `${eventName}\n${boothName}ブース\n${personName}さん (@${post.personAccount})\n\n#${post.eventInfo.hashtags.trim().replace(/\s+/g, ' #')}`;
+        // Basic template
+        let personBlock = "";
+        if (post.personAccount) {
+            personBlock = `${personName}さん (@${post.personAccount})`;
+        } else {
+            // combined mode (e.g. "Nameさん @Account")
+            personBlock = personName;
+        }
+
+        const baseText = `${eventName}\n${boothName}ブース\n${personBlock}\n\n#${post.eventInfo.hashtags.trim().replace(/\s+/g, ' #')}`;
 
         return {
             timestamp: new Date().toISOString(),

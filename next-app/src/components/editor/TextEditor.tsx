@@ -35,6 +35,10 @@ export function TextEditor() {
     const [isZenMode, setIsZenMode] = useState(false);
     const [showMetadata, setShowMetadata] = useState(true);
     const [showPersonInfo, setShowPersonInfo] = useState(true);
+    // Person Paste Mode State
+    const [personPasteMode, setPersonPasteMode] = useState(false);
+    const [personPasteInput, setPersonPasteInput] = useState("");
+
     const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
     const [emojiPickerPosition, setEmojiPickerPosition] = useState({ top: 100, left: 100 });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -251,28 +255,117 @@ export function TextEditor() {
                             </button>
 
                             {showPersonInfo && (
-                                <div className="p-4 pt-0 grid grid-cols-2 gap-3">
-                                    <select
-                                        className="bg-[var(--bg-tertiary)] border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-[var(--accent-primary)] outline-none"
-                                        value={post.personRole || 'モデル'}
-                                        onChange={(e) => handlePostFieldChange('personRole', e.target.value)}
-                                    >
-                                        {PERSON_ROLES.map(role => (
-                                            <option key={role} value={role}>{role}</option>
-                                        ))}
-                                    </select>
-                                    <input
-                                        placeholder="名前 / Name"
-                                        className="bg-transparent border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-[var(--accent-primary)] outline-none"
-                                        value={post.personName || ''}
-                                        onChange={(e) => handlePostFieldChange('personName', e.target.value)}
-                                    />
-                                    <input
-                                        placeholder="Xアカウント @account"
-                                        className="bg-transparent border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-[var(--accent-primary)] outline-none col-span-2"
-                                        value={post.personAccount || ''}
-                                        onChange={(e) => handlePostFieldChange('personAccount', e.target.value)}
-                                    />
+                                <div className="p-4 pt-0">
+                                    {/* Toggle Paste Mode */}
+                                    <div className="flex justify-end mb-2">
+                                        <button
+                                            onClick={() => setPersonPasteMode(!personPasteMode)}
+                                            className="text-xs text-[var(--text-secondary)] hover:text-white flex items-center gap-1"
+                                        >
+                                            <Type className="w-3 h-3" />
+                                            {personPasteMode ? "手動入力に戻す" : "テキストから一括入力"}
+                                        </button>
+                                    </div>
+
+                                    {personPasteMode ? (
+                                        <div className="space-y-3">
+                                            <textarea
+                                                className="w-full h-24 bg-[var(--bg-tertiary)] border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-[var(--accent-primary)] outline-none resize-none placeholder:text-[var(--text-muted)]"
+                                                placeholder="名前とIDをまとめて貼り付け...
+例:
+左 ᴘᴘᴏʏᴀ
+@PPOYA_HS
+右 福岡なみか
+@namika1202"
+                                                value={personPasteInput}
+                                                onChange={(e) => setPersonPasteInput(e.target.value)}
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    const text = personPasteInput;
+                                                    const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+                                                    const pairs: string[] = [];
+                                                    let currentNameBuffer: string[] = [];
+
+                                                    // Helper to process a name-account pair
+                                                    const addPair = (nameRaw: string, accountRaw: string) => {
+                                                        let name = nameRaw
+                                                            .replace(/[（\(].*?[）\)]/g, '')
+                                                            .replace(/[➶]/g, '')
+                                                            .replace(/^(?:左|右|Left|Right|L|R|center|中央)[:：]?[\s　]*/i, '')
+                                                            .trim();
+                                                        const account = accountRaw.trim();
+
+                                                        if (name && account) {
+                                                            pairs.push(`${name} さん ${account}`);
+                                                        }
+                                                    };
+
+                                                    for (const line of lines) {
+                                                        if (line.startsWith('@')) {
+                                                            const account = line;
+                                                            if (currentNameBuffer.length > 0) {
+                                                                addPair(currentNameBuffer.join(' '), account);
+                                                                currentNameBuffer = [];
+                                                            }
+                                                        } else {
+                                                            currentNameBuffer.push(line);
+                                                        }
+                                                    }
+
+                                                    // Handle single line case "Name @Account" if not handled above
+                                                    if (pairs.length === 0 && lines.length === 1) {
+                                                        const match = lines[0].match(/^(.*?)(\s*@\w+)/);
+                                                        if (match) {
+                                                            addPair(match[1], match[2]);
+                                                            currentNameBuffer = []; // Clear buffer if it was added
+                                                        }
+                                                    }
+
+                                                    if (pairs.length > 0) {
+                                                        handlePostFieldChange('personName', pairs.join('\n'));
+                                                        handlePostFieldChange('personAccount', ''); // Clear account as it is now in name
+                                                    } else {
+                                                        // Fallback if parsing failed but there is text?
+                                                        // Maybe just put it all in name.
+                                                        // But let's respect the user's specific "Parse" button intent.
+                                                    }
+
+                                                    setPersonPasteMode(false);
+                                                    setPersonPasteInput("");
+                                                }}
+                                                disabled={!personPasteInput.trim()}
+                                                className="w-full py-2 bg-[var(--accent-primary)] hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-xs font-bold text-white transition-colors"
+                                            >
+                                                解析して適用
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <select
+                                                className="bg-[var(--bg-tertiary)] border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-[var(--accent-primary)] outline-none"
+                                                value={post.personRole || 'モデル'}
+                                                onChange={(e) => handlePostFieldChange('personRole', e.target.value)}
+                                            >
+                                                {PERSON_ROLES.map(role => (
+                                                    <option key={role} value={role}>{role}</option>
+                                                ))}
+                                            </select>
+                                            <textarea
+                                                placeholder="名前 / Name (複数行可)"
+                                                className="bg-transparent border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-[var(--accent-primary)] outline-none resize-y min-h-[40px]"
+                                                rows={post.personName?.includes('\n') ? 3 : 1}
+                                                value={post.personName || ''}
+                                                onChange={(e) => handlePostFieldChange('personName', e.target.value)}
+                                            />
+                                            <input
+                                                placeholder="Xアカウント @account (任意)"
+                                                className="bg-transparent border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-[var(--accent-primary)] outline-none col-span-2"
+                                                value={post.personAccount || ''}
+                                                onChange={(e) => handlePostFieldChange('personAccount', e.target.value)}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

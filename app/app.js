@@ -998,16 +998,28 @@ async function handlePhotoForQueue(file) {
         return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const compressed = await compressImage(e.target.result);
-        addToQueue({
-            imageFile: file,
-            imageBase64: compressed
-        });
-        showToast('写真を追加しました', 'success');
-    };
-    reader.readAsDataURL(file);
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const compressed = await compressImage(e.target.result);
+                addToQueue({
+                    imageFile: file,
+                    imageBase64: compressed
+                });
+                showToast('写真を追加しました', 'success');
+                resolve();
+            } catch (err) {
+                showToast('画像の処理に失敗しました', 'error');
+                reject(err);
+            }
+        };
+        reader.onerror = () => {
+            showToast('ファイルの読み込みに失敗しました', 'error');
+            reject(new Error('FileReader error'));
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 async function handleMultiplePhotosForQueue(files) {

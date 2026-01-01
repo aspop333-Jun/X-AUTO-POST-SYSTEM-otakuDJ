@@ -30,37 +30,148 @@ export function EventInfoPanel({ className }: EventInfoPanelProps) {
         const result: Partial<EventInfo> = {};
         const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
-        for (const line of lines) {
-            // Date patterns
+        // Dictionary for smart mapping
+        const eventDictionary = [
+            { keywords: ['東京ゲームショウ', 'Tokyo Game Show', 'TGS'], en: 'Tokyo Game Show', abbr: 'TGS' },
+            { keywords: ['SUPER GT', 'SGT', 'SuperGT'], en: 'SUPER GT', abbr: 'SGT' },
+            { keywords: ['東京オートサロン', 'Tokyo Auto Salon', 'TAS'], en: 'Tokyo Auto Salon', abbr: 'TAS' },
+            { keywords: ['CP+'], en: 'CP+', abbr: 'CPPlus' },
+            { keywords: ['コミックマーケット', 'コミケ', 'Comic Market'], en: 'Comic Market', abbr: 'C' },
+            { keywords: ['ニコニコ超会議', 'Niconico Chokaigi'], en: 'Niconico Chokaigi', abbr: 'Chokaigi' },
+            { keywords: ['ワンダーフェスティバル', 'Wonder Festival', 'ワンフェス'], en: 'Wonder Festival', abbr: 'WF' },
+        ];
+
+        // Keywords for detecting race-related events (Category determination)
+        const raceKeywords = ['Super GT', 'SGT', 'Formula', 'Race', 'Racing', 'Circuit', 'D1', 'Taikyu', '8hit', 'レース', 'サーキット', '耐久'];
+        let isRaceEvent = false;
+
+        // Keywords for detecting venues
+        const venueKeywords = ['幕張メッセ', 'ビッグサイト', '国際展示場', 'インテックス', '会場', 'ホール', 'センター', 'Messe', 'Big Sight', 'スピードウェイ', 'Speedway'];
+
+        const parsedHashtags: string[] = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Date patterns: 2025.09.25 or 2025/9/26-28
             const dateMatch = line.match(/(\d{4}[.\/\-]\d{1,2}[.\/\-]\d{1,2})/);
             if (dateMatch) {
                 result.date = dateMatch[1];
+
+                // Check if venue is on the same line after the date (e.g. "2025.09.25 - 28 幕張メッセ")
+                // Replace the date part and check remaining text
+                const afterDate = line.replace(/.*?(\d{4}[.\/\-]\d{1,2}[.\/\-]\d{1,2}(?:[-\s]*\d{1,2})?)/, "").trim();
+
+                if (afterDate.length > 2 && !result.venue) {
+                    // If contains venue keywords or looks like a place
+                    if (venueKeywords.some(k => afterDate.includes(k)) || afterDate.length < 20) {
+                        result.venue = afterDate;
+                    }
+                }
+            }
+
+            // Explicit Venue line
+            if (venueKeywords.some(k => line.includes(k)) && !result.venue) {
+                // If the line IS just the keyword (e.g. "幕張メッセ"), use it.
+                if (venueKeywords.some(k => line === k)) {
+                    result.venue = line;
+                } else {
+                    // Try to strip standard prefixes "Venue: ..."
+                    const clean = line.replace(/^(会場|Venue|Place)[\s：:]+/, "").trim();
+                    // Heuristic: if the line was long and we just stripped a prefix, it might be the venue
+                    if (clean.length < 30) {
+                        result.venue = clean;
+                    }
+                }
             }
 
             // Hashtags
             const hashtagMatch = line.match(/((?:#[^\s#]+\s*)+)/);
             if (hashtagMatch) {
-                result.hashtags = hashtagMatch[1].trim();
+                const tags = hashtagMatch[1].trim().split(/\s+/);
+                parsedHashtags.push(...tags);
             }
 
-            // Event name (English - usually contains only ASCII)
+            // Event name (English)
             if (/^[A-Za-z0-9\s\-_&'".!]+$/.test(line) && line.length > 3 && !result.eventEn) {
                 result.eventEn = line;
+                if (raceKeywords.some(k => line.toLowerCase().includes(k.toLowerCase()))) isRaceEvent = true;
             }
 
             // Event name (Japanese)
             if (/[\u3040-\u30ff\u3400-\u9fff]/.test(line) && line.length > 2 && !result.eventJp) {
                 // Skip if it looks like a venue/location
-                if (!line.includes("会場") && !line.includes("ホール") && !line.includes("センター")) {
+                if (!venueKeywords.some(k => line.includes(k))) {
                     result.eventJp = line;
+                    if (raceKeywords.some(k => line.includes(k))) isRaceEvent = true;
                 }
             }
+        }
 
-            // Venue
-            if (line.includes("会場") || line.includes("ホール") || line.includes("センター") || line.includes("ビッグサイト")) {
-                result.venue = line.replace(/^.*?[：:]/, "").trim() || line;
+        // --- Smart Dictionary Matching ---
+        // If we found a Japanese name but no English name, try to map it
+        if (result.eventJp && !result.eventEn) {
+            const match = eventDictionary.find(d => d.keywords.some(k => result.eventJp!.includes(k)));
+            if (match) {
+                result.eventEn = match.en;
             }
         }
+        // Vice versa
+        if (result.eventEn && !result.eventJp) {
+            const match = eventDictionary.find(d => d.keywords.some(k => result.eventEn!.includes(k)));
+            if (match) {
+                // We keep eventJp empty if we can't be sure
+            }
+        }
+
+        // --- Hashtag Logic ---
+        // 1. Abbreviation + Year (e.g. #TGS2025)
+        let abbrTag = "";
+
+        // Try to find year from Date or Input
+        let year = "2025"; // Default fallback?
+        if (result.date) {
+            const yMatch = result.date.match(/^(\d{4})/);
+            if (yMatch) year = yMatch[1];
+        } else {
+            // Try to find year in any line
+            const yMatch = text.match(/20\d{2}/);
+            if (yMatch) year = yMatch[0];
+        }
+
+        // A. Check explicit input hashtags for something looking like Abbr+Year
+        const abbrYearRegex = new RegExp(`^#[A-Za-z0-9]+${year}$`);
+        const foundAbbrTag = parsedHashtags.find(t => abbrYearRegex.test(t));
+
+        if (foundAbbrTag) {
+            abbrTag = foundAbbrTag;
+        } else {
+            // B. Generate from Dictionary
+            const combinedName = (result.eventJp || "") + " " + (result.eventEn || "");
+            const dictMatch = eventDictionary.find(d => d.keywords.some(k => combinedName.includes(k)));
+
+            if (dictMatch) {
+                abbrTag = `#${dictMatch.abbr}${year}`;
+            }
+        }
+
+        // 2. Category Tag
+        // Check keywords again in the finalized names
+        const allText = (result.eventJp || "") + (result.eventEn || "") + (result.venue || "");
+        if (raceKeywords.some(k => allText.toLowerCase().includes(k.toLowerCase()))) {
+            isRaceEvent = true;
+        }
+
+        const categoryTag = isRaceEvent ? "#レースクィーン" : "#イベントコンパニオン";
+
+        const finalHashtags: string[] = [];
+        if (abbrTag) finalHashtags.push(abbrTag);
+        finalHashtags.push(categoryTag);
+
+        // Verify we don't duplicate
+        const uniqueTags = Array.from(new Set(finalHashtags));
+
+        result.hashtags = uniqueTags.join(" ");
 
         return result;
     };

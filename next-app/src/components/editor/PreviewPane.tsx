@@ -73,7 +73,11 @@ function generatePostTemplates(post: any) {
         x2Parts.push(boothName);
     }
     if (personName || personAccount) {
-        x2Parts.push(`${personName ? `${personName} さん` : ''} ${personAccount}`.trim());
+        if (personAccount) {
+            x2Parts.push(`${personName ? `${personName} さん` : ''} ${personAccount}`.trim());
+        } else {
+            x2Parts.push(personName || '');
+        }
     }
     x2Parts.push('');
     if (aiComment) {
@@ -109,6 +113,73 @@ function generatePostTemplates(post: any) {
     return { x1, x2, ig };
 }
 
+/**
+ * Multi-image preview component with X/Twitter-style layouts
+ * Matches the actual X/Twitter image grid layouts
+ */
+function MultiImagePreview({ images }: { images: string[] }) {
+    if (!images || images.length === 0) return null;
+
+    // Common styles for the container
+    const containerClass = "mt-3 rounded-2xl overflow-hidden border border-[#2f3336]";
+
+    // 1 image: Full width, original aspect ratio (max 16:9 width)
+    if (images.length === 1) {
+        return (
+            <div className={containerClass}>
+                <img
+                    src={images[0]}
+                    alt="Post"
+                    className="w-full h-auto object-contain max-h-[510px] bg-black"
+                />
+            </div>
+        );
+    }
+
+    // 2 images: Side by side with 2px gap, 16:9 aspect ratio each
+    if (images.length === 2) {
+        return (
+            <div className={`${containerClass} flex gap-[2px] bg-[#2f3336]`}>
+                {images.map((img, idx) => (
+                    <div key={idx} className="flex-1 aspect-[4/5] relative">
+                        <img src={img} alt={`Image ${idx + 1}`} className="absolute inset-0 w-full h-full object-cover" />
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    // 3 images: Left 4:5, Right side 16:9 ratio (2 stacked)
+    if (images.length === 3) {
+        return (
+            <div className={`${containerClass} flex gap-[2px] bg-[#2f3336]`}>
+                <div className="w-1/2 aspect-[4/5] relative">
+                    <img src={images[0]} alt="Image 1" className="absolute inset-0 w-full h-full object-cover" />
+                </div>
+                <div className="w-1/2 flex flex-col gap-[2px]">
+                    <div className="flex-1 aspect-[16/9] relative">
+                        <img src={images[1]} alt="Image 2" className="absolute inset-0 w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 aspect-[16/9] relative">
+                        <img src={images[2]} alt="Image 3" className="absolute inset-0 w-full h-full object-cover" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // 4 images: 2x2 grid with 16:9 overall aspect ratio
+    return (
+        <div className={`${containerClass} grid grid-cols-2 gap-[2px] bg-[#2f3336]`} style={{ aspectRatio: '16/9' }}>
+            {images.map((img, idx) => (
+                <div key={idx} className="relative">
+                    <img src={img} alt={`Image ${idx + 1}`} className="absolute inset-0 w-full h-full object-cover" />
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export function PreviewPane() {
     const { postQueue, currentEditIndex } = useAppStore();
     const [platform, setPlatform] = useState<Platform>("x1");
@@ -116,7 +187,10 @@ export function PreviewPane() {
 
     if (currentEditIndex === null || !postQueue[currentEditIndex]) return null;
     const post = postQueue[currentEditIndex];
-    const imageSrc = post.imageBase64;
+
+    // Get images array (with fallback for legacy data)
+    const images = post.images || (post.imageBase64 ? [post.imageBase64] : []);
+    const imageSrc = images[0] || null; // Legacy compatibility
 
     const templates = generatePostTemplates(post);
 
@@ -216,10 +290,8 @@ export function PreviewPane() {
                                 <p className="text-[15px] text-white whitespace-pre-wrap mb-3 leading-normal">
                                     {platform === "x1" ? templates.x1 : templates.x2}
                                 </p>
-                                {imageSrc && (
-                                    <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-[#2f3336] mt-3">
-                                        <Image src={imageSrc} alt="Post" fill className="object-cover" />
-                                    </div>
+                                {images.length > 0 && (
+                                    <MultiImagePreview images={images} />
                                 )}
                             </div>
                         </div>

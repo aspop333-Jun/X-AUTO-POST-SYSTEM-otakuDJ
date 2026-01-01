@@ -31,8 +31,9 @@ export interface ImageSettings {
 
 export interface PostItem {
     id: string;
-    imageFile: string | null; // Base64 or URL
-    imageBase64: string | null;
+    imageFile: string | null; // Base64 or URL (legacy)
+    images?: string[]; // Array of base64 strings (max 4) - optional for backwards compat
+    imageBase64: string | null; // Legacy: First image for backwards compatibility
     boothName: string;
     boothAccount: string;
     personRole: string;

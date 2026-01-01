@@ -71,7 +71,7 @@ export default function EditorPage() {
             {/* Content */}
             <div className="flex-1 flex overflow-hidden">
                 {/* Left: Image Editor */}
-                <div className="w-1/2 p-6 bg-[var(--bg-primary)] border-r border-white/10 relative z-0">
+                <div className="w-1/2 p-6 bg-[var(--bg-primary)] border-r border-white/10 relative z-0 overflow-y-auto">
                     <ImageEditor />
                 </div>
 

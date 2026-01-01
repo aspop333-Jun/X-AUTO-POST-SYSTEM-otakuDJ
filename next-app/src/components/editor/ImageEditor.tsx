@@ -8,7 +8,8 @@ import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
     RotateCw, FlipHorizontal, FlipVertical, Image as ImageIcon,
-    Square, RectangleHorizontal, RectangleVertical, Check
+    Square, RectangleHorizontal, RectangleVertical, Check,
+    Plus, X as XIcon
 } from "lucide-react";
 import { ImageContextMenu } from "./ImageContextMenu";
 import type { ScoredCandidate } from "@/utils/imageSimilarityService";
@@ -26,6 +27,8 @@ export function ImageEditor() {
     const [brightness, setBrightness] = useState(100);
     const [contrast, setContrast] = useState(100);
     const [saturation, setSaturation] = useState(100);
+    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+    const [isDragOver, setIsDragOver] = useState(false);
 
     // Context menu state
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -36,6 +39,12 @@ export function ImageEditor() {
     const post = postQueue[currentEditIndex];
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const addImageInputRef = useRef<HTMLInputElement>(null);
+
+    // Get images array (with fallback for legacy data)
+    const images = post.images || (post.imageBase64 ? [post.imageBase64] : []);
+    const currentImage = images[selectedImageIndex] || images[0] || null;
+    const canAddMore = images.length < 4;
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -44,7 +53,83 @@ export function ImageEditor() {
         const reader = new FileReader();
         reader.onload = (event) => {
             if (event.target?.result) {
-                updateQueueItem(currentEditIndex, { imageBase64: event.target.result as string });
+                const newImage = event.target.result as string;
+                updateQueueItem(currentEditIndex, {
+                    images: [newImage],
+                    imageBase64: newImage
+                });
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // Add additional image (for multi-image support)
+    const handleAddImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !canAddMore) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (event.target?.result) {
+                const newImage = event.target.result as string;
+                const newImages = [...images, newImage];
+                updateQueueItem(currentEditIndex, {
+                    images: newImages,
+                    imageBase64: newImages[0] // Keep first image as legacy
+                });
+                setSelectedImageIndex(newImages.length - 1); // Select the newly added image
+            }
+        };
+        reader.readAsDataURL(file);
+        // Reset input so same file can be selected again
+        if (addImageInputRef.current) addImageInputRef.current.value = '';
+    };
+
+    // Remove an image
+    const handleRemoveImage = (index: number) => {
+        if (images.length <= 1) return; // Don't remove the last image
+        const newImages = images.filter((_, i) => i !== index);
+        updateQueueItem(currentEditIndex, {
+            images: newImages,
+            imageBase64: newImages[0] || null
+        });
+        if (selectedImageIndex >= newImages.length) {
+            setSelectedImageIndex(Math.max(0, newImages.length - 1));
+        }
+    };
+
+    // Drag and drop handlers for adding images
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        if (canAddMore) setIsDragOver(true);
+    };
+
+    const handleDragLeave = () => {
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        if (!canAddMore) return;
+
+        const files = e.dataTransfer.files;
+        if (!files || files.length === 0) return;
+
+        // Process first valid image file only (to avoid stale closure issues)
+        const file = Array.from(files).find(f => f.type.startsWith('image/'));
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (event.target?.result) {
+                const newImage = event.target.result as string;
+                const newImages = [...images, newImage];
+                updateQueueItem(currentEditIndex, {
+                    images: newImages,
+                    imageBase64: newImages[0]
+                });
+                setSelectedImageIndex(newImages.length - 1);
             }
         };
         reader.readAsDataURL(file);
@@ -65,7 +150,7 @@ export function ImageEditor() {
         setShowSearchModal(false);
     };
 
-    if (!post.imageBase64) {
+    if (!currentImage) {
         return (
             <div
                 onClick={() => fileInputRef.current?.click()}
@@ -102,7 +187,13 @@ export function ImageEditor() {
         if (cropper) {
             const croppedCanvas = cropper.getCroppedCanvas();
             const croppedBase64 = croppedCanvas.toDataURL();
-            updateQueueItem(currentEditIndex, { imageBase64: croppedBase64 });
+            // Update the selected image in the array
+            const newImages = [...images];
+            newImages[selectedImageIndex] = croppedBase64;
+            updateQueueItem(currentEditIndex, {
+                images: newImages,
+                imageBase64: newImages[0] // Keep first image as legacy
+            });
         }
     };
 
@@ -111,10 +202,13 @@ export function ImageEditor() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-[var(--bg-card)] rounded-2xl overflow-hidden border border-white/10">
+        <div className="flex flex-col bg-[var(--bg-card)] rounded-2xl overflow-hidden border border-white/10">
             {/* Toolbar */}
             <div className="p-3 border-b border-white/10 flex items-center justify-between bg-[var(--bg-secondary)]">
                 <div className="flex items-center gap-2">
+                    <button className="px-2 py-1.5 hover:bg-white/10 rounded text-xs text-white border border-white/20" title="Original" onClick={() => (cropperRef.current as any)?.cropper.setAspectRatio(NaN)}>
+                        Original
+                    </button>
                     <button className="p-2 hover:bg-white/10 rounded" title="1:1" onClick={() => (cropperRef.current as any)?.cropper.setAspectRatio(1)}>
                         <Square className="w-4 h-4" />
                     </button>
@@ -142,20 +236,26 @@ export function ImageEditor() {
                 </div>
             </div>
 
-            {/* Main Area - with right-click support */}
+            {/* Main Area - with right-click support - Fixed height to allow scrolling */}
             <div
-                className="flex-1 relative bg-[#1a1a1a]"
+                className="relative bg-[#1a1a1a]"
+                style={{ height: '400px', minHeight: '300px' }}
                 onContextMenu={handleContextMenu}
             >
                 <Cropper
-                    src={post.imageBase64}
+                    key={currentImage?.substring(0, 100)} // Force re-render on image change
+                    src={currentImage || ''}
                     style={{ height: '100%', width: '100%', filter: getFilterString() } as any}
-                    initialAspectRatio={1}
-                    guides={true}
+                    initialAspectRatio={NaN}
+                    aspectRatio={NaN} // Force free aspect ratio
+                    guides={false}
                     ref={cropperRef}
-                    viewMode={1}
+                    viewMode={0} // No restrictions on crop box
                     background={false}
                     responsive={true}
+                    autoCrop={false} // ★ DISABLE automatic crop - show full image as-is
+                    zoomable={true}
+                    scalable={true}
                 />
             </div>
 
@@ -185,6 +285,68 @@ export function ImageEditor() {
                         className="w-full mt-1 accent-[var(--accent-primary)]"
                     />
                 </label>
+            </div>
+
+            {/* Image Thumbnails Strip */}
+            <div className="p-3 bg-[var(--bg-secondary)] border-t border-white/10">
+                <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] mb-2">
+                    <span>追加画像 ({images.length}/4)</span>
+                    <span className="text-[var(--text-muted)]">同じモデルさんの写真を最大4枚まで</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    {images.map((img, idx) => (
+                        <div
+                            key={idx}
+                            className={cn(
+                                "relative w-16 h-16 rounded-lg overflow-hidden cursor-pointer border-2 transition-all",
+                                selectedImageIndex === idx
+                                    ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/30"
+                                    : "border-white/10 hover:border-white/30"
+                            )}
+                            onClick={() => setSelectedImageIndex(idx)}
+                        >
+                            <img src={img} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
+                            {images.length > 1 && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveImage(idx);
+                                    }}
+                                    className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors"
+                                >
+                                    <XIcon className="w-3 h-3 text-white" />
+                                </button>
+                            )}
+                            <div className="absolute bottom-0.5 left-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-[10px] text-white font-bold">
+                                {idx + 1}
+                            </div>
+                        </div>
+                    ))}
+                    {canAddMore && (
+                        <div
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                            onClick={() => addImageInputRef.current?.click()}
+                            className={cn(
+                                "w-16 h-16 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-all cursor-pointer",
+                                isDragOver
+                                    ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/20 scale-105"
+                                    : "border-white/20 hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 text-[var(--text-muted)] hover:text-[var(--accent-primary)]"
+                            )}
+                        >
+                            <Plus className="w-6 h-6" />
+                            <span className="text-[10px]">{isDragOver ? "ドロップ" : "追加"}</span>
+                        </div>
+                    )}
+                    <input
+                        ref={addImageInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAddImage}
+                    />
+                </div>
             </div>
 
             {/* Context Menu */}

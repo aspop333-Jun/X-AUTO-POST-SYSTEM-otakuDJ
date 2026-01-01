@@ -25,7 +25,8 @@ export function DropZone() {
                     // Use the current event info for all photos
                     addToQueue({
                         imageFile: null,
-                        imageBase64: base64,
+                        images: [base64], // New: Array of images
+                        imageBase64: base64, // Legacy: Keep for backwards compatibility
                         boothName: "",
                         boothAccount: "",
                         personRole: "モデル",

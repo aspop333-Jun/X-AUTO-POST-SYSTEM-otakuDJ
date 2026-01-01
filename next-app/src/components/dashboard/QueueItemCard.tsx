@@ -21,6 +21,7 @@ export function QueueItemCard({ post, index }: QueueItemProps) {
     const statusColors = {
         draft: "bg-gray-500/10 text-gray-400 border-gray-500/20",
         ready: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+        sending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
         sent: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
         failed: "bg-red-500/10 text-red-400 border-red-500/20",
     };
