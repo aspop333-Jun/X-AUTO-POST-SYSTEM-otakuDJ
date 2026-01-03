@@ -29,6 +29,7 @@ venv/
 ENV/
 env/
 .venv/
+.venv_*/
 
 # IDE
 .vscode/
@@ -36,6 +37,7 @@ env/
 *.swp
 *.swo
 *~
+*.bak
 
 # OS
 .DS_Store

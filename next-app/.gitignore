@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#仮想環境
+/.venv_lmdeploy/
+/.venv_wsl/
+
+
