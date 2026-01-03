@@ -1,10 +1,11 @@
 """
-Kotaro-Engine v2: 画像解析 → 18文字生成
+[DEPRECATED] Kotaro-Engine v2: 画像解析 → 18文字生成
 
-llavaで写真の表情を自動判定し、Kotaro-Engineで18文字を生成
+⚠️ このファイルは非推奨です。kotaro_api.py を使用してください。
+⚠️ 現在のシステムはQwen (Ollama) を使用しています。
 
-使用方法:
-    python kotaro_v2.py --image "path/to/photo.jpg" --name "栞"
+旧: llava + gemma3:4b
+新: qwen2.5vl:7b + qwen2.5:7b-instruct-q4_K_M
 """
 
 import ollama

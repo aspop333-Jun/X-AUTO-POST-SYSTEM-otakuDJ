@@ -10,6 +10,17 @@ python-multipart>=0.0.6
 
 # 画像処理
 opencv-python>=4.8.0
+Pillow>=10.1.0
 
 # MediaPipe（オプション）
 mediapipe>=0.10.0
+
+# =============================================================================
+# MiniCPM-V 2.6 (Vision Core) - RTX 4060 8GB VRAM 最適化
+# =============================================================================
+torch>=2.1.2
+torchvision>=0.16.2
+transformers>=4.40.0
+accelerate>=0.30.1
+bitsandbytes>=0.43.1
+sentencepiece>=0.1.99

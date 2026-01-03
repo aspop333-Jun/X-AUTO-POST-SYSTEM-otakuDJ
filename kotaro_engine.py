@@ -55,7 +55,7 @@ EXAMPLES = {
 class KotaroEngine:
     """18文字エモコメント生成エンジン"""
     
-    def __init__(self, model: str = "gemma3:4b"):
+    def __init__(self, model: str = "qwen2.5:7b-instruct-q4_K_M"):
         self.model = model
         self.max_length = 18
         

@@ -1,0 +1,1 @@
+進捗管理と私が言ったら、既存のコード全体をレビューして進捗管理をしてください。出力はC:\AI\APP\X-AUTO-POST-SYSTEM-otakuDJ\Progressへ、MD形式にしてください 

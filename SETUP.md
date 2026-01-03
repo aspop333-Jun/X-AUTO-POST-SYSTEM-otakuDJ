@@ -49,6 +49,31 @@ run.bat app
 
 ---
 
+## 🐧 セットアップ手順（WSL2 / Ubuntu - 推奨）
+
+最速の推論パフォーマンス（Flash Attention有効）を得るには、WSL2上のUbuntuで実行してください。
+
+### ステップ1: ターミナルでスクリプト実行権限を付与
+
+```bash
+chmod +x setup_kotaro.sh start_kotaro.sh
+```
+
+### ステップ2: セットアップ（初回のみ）
+
+```bash
+./setup_kotaro.sh
+```
+必要なライブラリとAIモデル（Qwen）が自動インストールされます。
+
+### ステップ3: 起動
+
+```bash
+./start_kotaro.sh
+```
+Flash Attention有効化状態でサーバーが起動します。
+その後、Windows側のブラウザで http://localhost:8000/health にアクセスして確認できます。
+
 ## 📖 よく使うコマンド（Windows）
 
 | コマンド | 説明 |
