@@ -1,8 +1,9 @@
 """
-Kotaro-Engine API Server (V2.3 LMDeploy Edition)
+Kotaro-Engine API Server (V2.3 LMDeploy Edition + Gemini Hybrid)
 """
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import httpx
 import uvicorn
 import base64
@@ -11,13 +12,22 @@ import os
 import json
 import logging
 from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
+
+# 環境変数読み込み
+load_dotenv()
+
+# Geminiのインポート
+import google.generativeai as genai
+
+# Kotaro内部モジュール
 from kotaro_scoring import KotaroScorer, CRITERIA
 
 # ロガー設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("kotaro_api")
 
-app = FastAPI(title="Kotaro-Engine API (V2.3)")
+app = FastAPI(title="Kotaro-Engine API (V2.3 Hybrid)")
 
 # CORS
 app.add_middleware(
@@ -28,12 +38,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# -----------------------------------------------------------------------------
+# Configuration
+# -----------------------------------------------------------------------------
+
+# VLM設定 (Local)
+# Docker(host network) or Port Forwarding
+LMDEPLOY_URL = "http://localhost:23333/v1/chat/completions"
+
+# Gemini API設定 (Cloud)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
 # スコアラー初期化
 scorer = KotaroScorer()
 
-# VLM設定
-# Docker(host network) or Port Forwarding
-LMDEPLOY_URL = "http://localhost:23333/v1/chat/completions"
+# -----------------------------------------------------------------------------
+# Data Models (from api/main.py)
+# -----------------------------------------------------------------------------
+
+class CommentRequest(BaseModel):
+    """Gemini API用リクエストモデル"""
+    booth_name: str = "ブース"
+    role: str = "モデル"
+    category: str = "ブース"
+    expression_type: str = "笑顔"
+    focus_point: str = "表情"
+    context_match: str = "ブースの雰囲気"
+    image_base64: Optional[str] = None
+
+class CommentResponse(BaseModel):
+    """Gemini API用レスポンスモデル"""
+    comment: str
+    source: str  # "ai" or "rule_based"
+
+class HealthResponse(BaseModel):
+    status: str
+    api_configured: bool
+    local_vlm: bool
+
+# -----------------------------------------------------------------------------
+# Helper Functions (Local VLM)
+# -----------------------------------------------------------------------------
 
 async def call_vlm_analysis(image_path: str) -> Dict[str, Any]:
     """VLMに画像を投げて60項目判定(JSON)を取得"""
@@ -81,7 +128,6 @@ async def call_vlm_analysis(image_path: str) -> Dict[str, Any]:
         ],
         "temperature": 0.1,  # 決定論的に
         "max_tokens": 1024,
-        # "response_format": {"type": "json_object"} # Qwen-VLの実装依存のため、プロンプト指示をメインにする
     }
     
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -108,13 +154,100 @@ async def call_vlm_analysis(image_path: str) -> Dict[str, Any]:
             logger.error(f"VLM Error: {e}")
             raise HTTPException(status_code=500, detail=f"VLM Analysis Failed: {str(e)}")
 
+# -----------------------------------------------------------------------------
+# Helper Functions (Gemini / Rule Based)
+# -----------------------------------------------------------------------------
+
+FALLBACK_TEMPLATES = {
+    "笑顔": [
+        "爽やかな笑顔がブースの雰囲気にぴったりでした✨",
+        "自然な笑顔がとても魅力的でした✨",
+        "明るい笑顔が会場を華やかにしていました✨",
+    ],
+    "クール": [
+        "凛とした表情がとても印象的でした✨",
+        "クールな雰囲気がブースの世界観に合っていました✨",
+        "シャープな表情が目を引きました✨",
+    ],
+    # ... 他のテンプレートは必要に応じて追加 ...
+}
+
+def generate_fallback_comment(expression_type: str) -> str:
+    """ルールベースでフォールバックコメントを生成"""
+    import random
+    templates = FALLBACK_TEMPLATES.get(expression_type, FALLBACK_TEMPLATES["笑顔"])
+    return random.choice(templates)
+
+def build_gemini_prompt(request: CommentRequest, has_image: bool) -> str:
+    """Gemini用のプロンプトを構築"""
+    prompt = f"""あなたはイベント写真の一言コメントを書くプロです。
+{'この写真を見て、' if has_image else ''}以下のルールで1行コメントを1つだけ生成してください：
+
+【絶対ルール】
+- 1行のみ（20〜30文字）
+- 「〇〇が△△にぴったり/合っていた」形式
+- 最後に✨を付ける
+- 固有名詞・キャラ名・作品名は絶対に入れない
+- 主語を「俺」にしない
+- スラング禁止（神、優勝、バチバチ等）
+
+【使える評価軸のみ使用】
+笑顔、表情、視線、佇まい、雰囲気、衣装が似合う、ライトに映える、ブースの雰囲気に合う
+
+{'【写真から読み取るべき要素】' if has_image else ''}
+{'''- 人物の表情（笑顔、クール、優しい、凛としたなど）
+- 全体の雰囲気（明るい、落ち着いた、華やかなど）
+- 衣装やライティングの印象''' if has_image else ''}
+
+【ユーザーが選択した雰囲気】
+- 表情・雰囲気: {request.expression_type}
+- 注目ポイント: {request.focus_point}
+- マッチ先: {request.context_match}
+
+【情報】
+- カテゴリ: {request.category}
+- ブース: {request.booth_name}
+- 役割: {request.role}
+
+【出力形式】
+コメントのみを1行で出力（説明不要）"""
+    return prompt
+
+# -----------------------------------------------------------------------------
+# Endpoints
+# -----------------------------------------------------------------------------
+
+@app.get("/health", response_model=HealthResponse)
+async def health_check():
+    """統合ヘルスチェック"""
+    # Local VLM check (simple connection check)
+    local_vlm_status = False
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+             # VLM health check or just connect to root/models
+             # LMDeploy usually has /v1/models
+             resp = await client.get(LMDEPLOY_URL.replace("/chat/completions", "/models"))
+             if resp.status_code == 200:
+                 local_vlm_status = True
+    except:
+        pass
+
+    return HealthResponse(
+        status="ok",
+        api_configured=bool(GEMINI_API_KEY),
+        local_vlm=local_vlm_status
+    )
+
 @app.post("/generate")
-async def generate_comment(
+async def generate_comment_local(
     image: UploadFile = File(...),
     name: str = Form(default=""),
     count: int = Form(default=3),
 ):
-    """メインエンドポイント：画像 -> VLM -> Scorer -> Comment"""
+    """
+    [Local Mode] 画像 -> VLM -> Scorer -> Comment
+    Next.js App (Candy Kotaro) 用のメインエンドポイント
+    """
     
     # 画像一時保存
     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
@@ -178,8 +311,76 @@ async def generate_comment(
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
+@app.post("/generate-comment", response_model=CommentResponse)
+async def generate_comment_cloud(request: CommentRequest):
+    """
+    [Cloud Mode] Gemini APIを使用した一言コメント生成
+    api/main.py からの移行
+    """
+
+    if not GEMINI_API_KEY:
+        # API未設定の場合はルールベースで生成
+        comment = generate_fallback_comment(request.expression_type)
+        return CommentResponse(comment=comment, source="rule_based")
+
+    try:
+        # Geminiモデルを初期化
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+        # 画像の有無を確認
+        has_image = bool(request.image_base64)
+
+        # プロンプトを構築
+        prompt = build_gemini_prompt(request, has_image)
+
+        if has_image:
+            # 画像付きリクエスト
+            if request.image_base64.startswith('data:'):
+                header, image_data = request.image_base64.split(',', 1)
+                mime_type = header.split(':')[1].split(';')[0]
+            else:
+                image_data = request.image_base64
+                mime_type = "image/jpeg"
+
+            image_bytes = base64.b64decode(image_data)
+
+            response = model.generate_content([
+                {
+                    "mime_type": mime_type,
+                    "data": image_bytes
+                },
+                prompt
+            ])
+        else:
+            response = model.generate_content(prompt)
+
+        if response.text:
+            comment = response.text.strip()
+            return CommentResponse(comment=comment, source="ai")
+        else:
+            raise ValueError("Empty response from API")
+
+    except Exception as e:
+        logger.error(f"Gemini API error: {e}")
+        comment = generate_fallback_comment(request.expression_type)
+        return CommentResponse(comment=comment, source="rule_based")
+
+@app.get("/")
+async def root():
+    """ルートエンドポイント"""
+    return {
+        "message": "Kotaro-Engine API (Hybrid)",
+        "modes": {
+            "local": "/generate (POST, FormData)",
+            "cloud": "/generate-comment (POST, JSON)"
+        },
+        "docs": "/docs",
+        "health": "/health"
+    }
+
 if __name__ == "__main__":
-    print("\n🐯 Kotaro-Engine API Server (V2.3)")
+    print("\n🐯 Kotaro-Engine API Server (V2.3 Hybrid)")
     print(f"Connecting to VLM: {LMDEPLOY_URL}")
+    print(f"Gemini API: {'Configured' if GEMINI_API_KEY else 'Not Configured'}")
     print("=" * 40)
     uvicorn.run(app, host="0.0.0.0", port=8000)
