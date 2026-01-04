@@ -10,14 +10,25 @@ import tempfile
 import os
 import json
 import logging
+import random
 from typing import List, Dict, Any, Optional
 from kotaro_scoring import KotaroScorer, CRITERIA
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+# 環境変数を読み込む
+load_dotenv()
 
 # ロガー設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("kotaro_api")
 
-app = FastAPI(title="Kotaro-Engine API (V2.3)")
+app = FastAPI(title="Kotaro-Engine API (V2.3 - Hybrid)")
+
+# Gemini API設定
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 # CORS
 app.add_middleware(
@@ -34,6 +45,97 @@ scorer = KotaroScorer()
 # VLM設定
 # Docker(host network) or Port Forwarding
 LMDEPLOY_URL = "http://localhost:23333/v1/chat/completions"
+
+# ルールベースのフォールバック用テンプレート
+FALLBACK_TEMPLATES = {
+    "笑顔": [
+        "爽やかな笑顔がブースの雰囲気にぴったりでした✨",
+        "自然な笑顔がとても魅力的でした✨",
+        "明るい笑顔が会場を華やかにしていました✨",
+    ],
+    "クール": [
+        "凛とした表情がとても印象的でした✨",
+        "クールな雰囲気がブースの世界観に合っていました✨",
+        "シャープな表情が目を引きました✨",
+    ],
+    "かわいい": [
+        "栞さん可愛い、これは反則✨",
+        "栞さんの可愛さ、規格外📸",
+        "栞さん可愛すぎて無理✨",
+    ],
+    "ふざけ": [
+        "栞さんのこのノリ、最高📸",
+        "栞さん面白すぎる✨",
+        "栞さんこれ好き、優勝📸",
+    ],
+    "真剣": [
+        "栞さんの真剣な眼差し、刺さる✨",
+        "栞さんこの表情、美しい📸",
+        "栞さんの集中力、ヤバい✨",
+    ],
+}
+
+def generate_fallback_comment(expression_type: str = "笑顔", name: str = "") -> str:
+    """ルールベースでフォールバックコメントを生成"""
+    templates = FALLBACK_TEMPLATES.get(expression_type, FALLBACK_TEMPLATES["笑顔"])
+    comment = random.choice(templates)
+
+    # 名前があれば置換（テンプレートによっては名前が入らないものもあるので、接頭辞として追加する簡易ロジックも検討）
+    if name.strip():
+        # "栞"が含まれていれば置換
+        if "栞" in comment:
+            comment = comment.replace("栞", name)
+        # 含まれていなければ接頭辞として追加（ただし、文脈による）
+        elif "✨" in comment: # 既存のテンプレートは✨で終わるものが多い
+             pass # そのまま
+
+    return comment
+
+async def call_gemini_analysis(image_path: str, name: str = "モデル") -> Dict[str, Any]:
+    """Gemini APIを使用して画像分析とコメント生成を行う"""
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY is not set")
+
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+        with open(image_path, "rb") as f:
+            image_data = f.read()
+
+        prompt = f"""
+        あなたはイベント写真のプロのキャプションライターです。
+        この写真の人物（名前: {name}）について、SNSに投稿するための短いコメント（18文字以内）を3つ提案してください。
+
+        条件:
+        1. 名前（{name}）を含めること。
+        2. 写真の表情や雰囲気を反映すること。
+        3. ポジティブで魅力的な内容にすること。
+        4. スラング禁止（神、優勝、バチバチ等）。
+        5. 文末に✨をつけること。
+
+        出力形式:
+        JSON形式で出力してください。
+        {{
+            "expression": "笑顔/クール/かわいい/etc",
+            "comments": ["コメント1", "コメント2", "コメント3"]
+        }}
+        """
+
+        response = model.generate_content([
+            {"mime_type": "image/jpeg", "data": image_data},
+            prompt
+        ])
+
+        if response.text:
+            text = response.text.strip().replace("```json", "").replace("```", "")
+            return json.loads(text)
+        else:
+            raise ValueError("Empty response from Gemini")
+
+    except Exception as e:
+        logger.error(f"Gemini Error: {e}")
+        raise e
+
 
 async def call_vlm_analysis(image_path: str) -> Dict[str, Any]:
     """VLMに画像を投げて60項目判定(JSON)を取得"""
@@ -114,7 +216,12 @@ async def generate_comment(
     name: str = Form(default=""),
     count: int = Form(default=3),
 ):
-    """メインエンドポイント：画像 -> VLM -> Scorer -> Comment"""
+    """
+    メインエンドポイント：
+    1. Local VLM (MiniCPM-V) -> Scorer -> Comment
+    2. Fallback: Gemini API (Cloud)
+    3. Fallback: Rule-based (Random)
+    """
     
     # 画像一時保存
     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
@@ -123,56 +230,84 @@ async def generate_comment(
         tmp_path = tmp.name
         
     try:
-        # 1. VLM分析（60項目判定）
-        logger.info("Calling VLM...")
-        vlm_result = await call_vlm_analysis(tmp_path)
-        criteria_answers = vlm_result.get("criteria", {})
-        
-        # 0/1 を bool に変換
-        answers_bool = {k: bool(v) for k, v in criteria_answers.items()}
-        
-        # 2. スコアリング＆パターン決定
-        logger.info("Scoring...")
-        pattern_id, p_scores, s_scores = scorer.score_from_answers(answers_bool)
-        pattern_info = scorer.patterns[pattern_id]
-        
-        # 3. コメント生成
-        comments = []
-        for _ in range(count):
-            raw_comment = scorer.get_comment(pattern_id)
-            # 名前入れ
-            if name.strip() and not raw_comment.startswith(name):
-                final_comment = f"{name}さん、{raw_comment}"
-            else:
-                final_comment = raw_comment
-            comments.append(final_comment)
+        # --- Plan A: Local VLM ---
+        try:
+            logger.info("Attempting Local VLM Analysis...")
+            vlm_result = await call_vlm_analysis(tmp_path)
+            criteria_answers = vlm_result.get("criteria", {})
             
-        # 後方互換性フィールド
-        expression_str = f"{pattern_info['name']} ({pattern_info['trigger']})"
+            # 0/1 を bool に変換
+            answers_bool = {k: bool(v) for k, v in criteria_answers.items()}
             
-        return {
-            "success": True,
-            "pattern": {
-                "id": pattern_id,
-                "name": pattern_info["name"],
-                "trigger": pattern_info["trigger"]
-            },
-            "expression": expression_str, # フロントエンド互換性
-            "analysis": expression_str,   # 旧API互換性
-            "scores": p_scores,
-            "comments": comments,
-            "analysis_raw": vlm_result # フロントエンドでのデバッグ用に維持
-        }
-        
-    except httpx.ConnectError:
-        logger.error("VLM Connection Failed")
-        return {
-            "success": False,
-            "error": "VLM engine is offline. Please start LMDeploy container."
-        }
-    except Exception as e:
-        logger.error(f"API Error: {e}")
-        return {"success": False, "error": str(e)}
+            # スコアリング＆パターン決定
+            pattern_id, p_scores, s_scores = scorer.score_from_answers(answers_bool)
+            pattern_info = scorer.patterns[pattern_id]
+
+            # コメント生成
+            comments = []
+            for _ in range(count):
+                raw_comment = scorer.get_comment(pattern_id)
+                # 名前入れ
+                if name.strip() and not raw_comment.startswith(name):
+                    final_comment = f"{name}さん、{raw_comment}"
+                else:
+                    final_comment = raw_comment
+                comments.append(final_comment)
+
+            expression_str = f"{pattern_info['name']} ({pattern_info['trigger']})"
+
+            return {
+                "success": True,
+                "source": "local_vlm",
+                "pattern": {
+                    "id": pattern_id,
+                    "name": pattern_info["name"],
+                    "trigger": pattern_info["trigger"]
+                },
+                "expression": expression_str,
+                "analysis": expression_str,
+                "scores": p_scores,
+                "comments": comments,
+                "analysis_raw": vlm_result
+            }
+
+        except (httpx.ConnectError, httpx.HTTPError) as e:
+            logger.warning(f"Local VLM failed ({e}), switching to Plan B (Gemini)...")
+            raise ValueError("Local VLM Unavailable") # Trigger Plan B
+
+    except ValueError:
+        # --- Plan B: Gemini API ---
+        try:
+            if not GEMINI_API_KEY:
+                logger.warning("Gemini API Key not found, switching to Plan C (Rule-based)...")
+                raise ValueError("No API Key")
+
+            logger.info("Attempting Gemini Analysis...")
+            gemini_result = await call_gemini_analysis(tmp_path, name)
+
+            return {
+                "success": True,
+                "source": "gemini_cloud",
+                "expression": gemini_result.get("expression", "Unknown"),
+                "comments": gemini_result.get("comments", []),
+                "analysis": gemini_result.get("expression", "Unknown")
+            }
+
+        except Exception as e:
+            logger.error(f"Gemini failed ({e}), switching to Plan C (Rule-based)...")
+
+            # --- Plan C: Rule-based Fallback ---
+            comments = []
+            for _ in range(count):
+                comments.append(generate_fallback_comment("笑顔", name)) # デフォルト笑顔
+
+            return {
+                "success": True,
+                "source": "rule_based_fallback",
+                "expression": "Fallback (Rule-based)",
+                "comments": comments,
+                "analysis": "Fallback"
+            }
         
     finally:
         if os.path.exists(tmp_path):
