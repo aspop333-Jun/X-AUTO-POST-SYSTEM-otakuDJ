@@ -1,0 +1,563 @@
+{
+  "type": "object",
+  "properties": {
+    "criteria": {
+      "type": "object",
+      "properties": {
+        "A01": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "正面を向いている"
+        },
+        "A02": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "全身が映っている"
+        },
+        "A03": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "スタイル・曲線が美しい"
+        },
+        "A04": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "衣装が明るい色（白/青系）"
+        },
+        "A05": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "背景と馴染んでいる"
+        },
+        "A06": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "ポーズが決まっている"
+        },
+        "A07": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "体のラインがきれい"
+        },
+        "A08": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "透明感がある（明るい写真）"
+        },
+        "A09": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "視線がまっすぐ"
+        },
+        "A10": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "黒目が大きく見える"
+        },
+        "A11": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "衣装の完成度が高い"
+        },
+        "A12": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "コスプレ・キャラ衣装"
+        },
+        "A13": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "複数人で映っている"
+        },
+        "A14": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "チーム衣装・お揃い"
+        },
+        "A15": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "写真全体のバランスが良い"
+        },
+        "B01": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "笑顔である"
+        },
+        "B02": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "にこっとしている"
+        },
+        "B03": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "ピースサインをしている"
+        },
+        "B04": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "指ハートをしている"
+        },
+        "B05": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "手を振っている"
+        },
+        "B06": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "口角が上がっている"
+        },
+        "B07": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "目が笑っている"
+        },
+        "B08": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "ふわっとした雰囲気"
+        },
+        "B09": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "何かを持っている（ノベルティ等）"
+        },
+        "B10": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "頬が丸い・柔らかそう"
+        },
+        "B11": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "衣装がピンク・パステル系"
+        },
+        "B12": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "小物・アクセサリーが可愛い"
+        },
+        "B13": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "イベントで楽しそう"
+        },
+        "B14": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "動きのある仕草"
+        },
+        "B15": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "自然体・作り込みすぎない"
+        },
+        "C01": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "表情が控えめ"
+        },
+        "C02": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "落ち着いた雰囲気"
+        },
+        "C03": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "大人っぽい"
+        },
+        "C04": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "衣装が黒・ダーク系"
+        },
+        "C05": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "クールな視線"
+        },
+        "C06": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "余裕がある表情"
+        },
+        "C07": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "プロっぽさがある"
+        },
+        "C08": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "決めポーズがバッチリ"
+        },
+        "C09": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "衣装とポーズの完成度高い"
+        },
+        "C10": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "カッコいい系の衣装"
+        },
+        "C11": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "キリッとした表情"
+        },
+        "C12": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "目力が強い"
+        },
+        "C13": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "サーキット・レース背景"
+        },
+        "C14": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "衣装と表情のギャップ"
+        },
+        "C15": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "意外性がある"
+        },
+        "D01": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "カメラとの距離が近い"
+        },
+        "D02": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "安心感がある表情"
+        },
+        "D03": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "目線が優しい"
+        },
+        "D04": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "ほっとする雰囲気"
+        },
+        "D05": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "自然な笑顔（作り笑いじゃない）"
+        },
+        "D06": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "話しかけてくれそう"
+        },
+        "D07": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "イベント会場の雰囲気"
+        },
+        "D08": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "人混み・ブース背景"
+        },
+        "D09": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "思い出感がある"
+        },
+        "D10": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "ふとした瞬間を捉えた"
+        },
+        "D11": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "柔らかい雰囲気"
+        },
+        "D12": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "さすが感・安定感"
+        },
+        "D13": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "いつも通りの良さ"
+        },
+        "D14": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "グループ・仲間感"
+        },
+        "D15": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ],
+          "description": "癒される"
+        }
+      },
+      "required": [
+        "A01",
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07",
+        "A08",
+        "A09",
+        "A10",
+        "A11",
+        "A12",
+        "A13",
+        "A14",
+        "A15",
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "B07",
+        "B08",
+        "B09",
+        "B10",
+        "B11",
+        "B12",
+        "B13",
+        "B14",
+        "B15",
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "C06",
+        "C07",
+        "C08",
+        "C09",
+        "C10",
+        "C11",
+        "C12",
+        "C13",
+        "C14",
+        "C15",
+        "D01",
+        "D02",
+        "D03",
+        "D04",
+        "D05",
+        "D06",
+        "D07",
+        "D08",
+        "D09",
+        "D10",
+        "D11",
+        "D12",
+        "D13",
+        "D14",
+        "D15"
+      ],
+      "description": "60 items criteria judgment (1: Yes, 0: No)"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Overall confidence level of the analysis"
+    }
+  },
+  "required": [
+    "criteria"
+  ],
+  "additionalProperties": false
+}

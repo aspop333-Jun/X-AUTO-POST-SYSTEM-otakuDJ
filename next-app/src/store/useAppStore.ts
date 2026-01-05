@@ -40,6 +40,7 @@ export interface PostItem {
     personName: string;
     personAccount: string;
     aiComment: string;
+    analysisResult?: any; // Kotaroスコアリング結果を保持
     status: 'draft' | 'ready' | 'sending' | 'sent' | 'failed';
     eventInfo: EventInfo;
     imageSettings?: ImageSettings;

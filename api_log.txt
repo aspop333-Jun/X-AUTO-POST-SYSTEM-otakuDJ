@@ -1,0 +1,325 @@
+INFO:     Started server process [26088]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+
+🐯 Kotaro-Engine API Server (V2.3)
+
+🐯 Kotaro-Engine API Server (V2.3)
+Connecting to VLM: http://localhost:23334/v1
+========================================
+INFO:     127.0.0.1:50636 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 0,
+    "A04": 1,
+    "A05": 0,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P01)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:60258 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 1,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:61544 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 1,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:61571 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P02)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:58026 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 1,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:64315 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 1,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:49769 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P02)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:63560 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 0,
+    "A04": 0,
+    "A05": 0,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P01)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:63569 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 1,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:61255 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 1,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:64622 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 1,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:63768 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 1,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:63774 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 1,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:60872 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 0,
+    "A04": 0,
+    "A05": 0,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P01)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:60876 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:58829 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 1,
+    "A04": 0,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:57085 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P02)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:57088 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 0,
+    "A04": 0,
+    "A05": 0,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P01)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50098 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 0,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:50101 - "POST /generate HTTP/1.1" 200 OK
+INFO:kotaro_api:Calling VLM...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:kotaro_api:VLM Raw Response: ```json
+{
+  "criteria": {
+    "A01": 1,
+    "A02": 1,
+    "A03": 1,
+    "A04": 1,
+    "A05": 1,
+    ...
+INFO:kotaro_api:Scoring...
+INFO:kotaro_api:Generating Comment (Pattern: P10)...
+INFO:httpx:HTTP Request: POST http://localhost:23334/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:62875 - "POST /generate HTTP/1.1" 200 OK

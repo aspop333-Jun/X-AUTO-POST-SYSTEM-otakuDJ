@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { EmojiPicker } from "./EmojiPicker";
+import { ScoringVisualization } from "./ScoringVisualization";
 import { showToast, updateToast } from "@/components/ui/Toast";
 
 const PERSON_ROLES = [
@@ -43,8 +44,18 @@ export function TextEditor() {
     const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
     const [emojiPickerPosition, setEmojiPickerPosition] = useState({ top: 100, left: 100 });
     const [isGenerating, setIsGenerating] = useState(false);
+    const [analysisResult, setAnalysisResult] = useState<any>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const emojiButtonRef = useRef<HTMLButtonElement>(null);
+
+    // キューから保存されたanalysisResultを復元
+    useEffect(() => {
+        if (currentEditIndex !== null && postQueue[currentEditIndex]?.analysisResult) {
+            setAnalysisResult(postQueue[currentEditIndex].analysisResult);
+        } else {
+            setAnalysisResult(null);
+        }
+    }, [currentEditIndex, postQueue]);
 
     // Kotaro-Engine 22文字コメント生成
     const generateKotaroComment = async () => {
@@ -90,7 +101,12 @@ export function TextEditor() {
 
             if (result.success && result.comments?.length > 0) {
                 const comment = result.comments[0];
-                updateQueueItem(currentEditIndex!, { aiComment: comment });
+                // コメントとスコアリング結果を両方保存（画面遷移後も確認可能に）
+                updateQueueItem(currentEditIndex!, {
+                    aiComment: comment,
+                    analysisResult: result  // スコアリング結果をキューに保存
+                });
+                setAnalysisResult(result);  // ローカルステートにも保存（即時表示用）
                 updateToast(toastId, {
                     type: 'success',
                     title: '🐯 Kotaro生成完了！',
@@ -500,7 +516,39 @@ export function TextEditor() {
 
                 {/* Main Text Area */}
                 <div className={cn("flex-1 flex flex-col", isZenMode && "max-w-3xl w-full")}>
-                    <label className="px-4 pt-3 text-xs text-[var(--text-muted)]">一言コメント / Caption</label>
+                    <div className="flex items-center gap-2 px-4 pt-3">
+                        <label className="text-xs text-[var(--text-muted)]">一言コメント / Caption</label>
+                        {post.aiComment && post.aiComment.length > 0 && (
+                            <button
+                                onClick={async (e) => {
+                                    const btn = e.currentTarget;
+                                    try {
+                                        const response = await fetch('http://localhost:8000/feedback/like', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                comment: post.aiComment,
+                                                pattern: analysisResult?.pattern?.id || 'unknown',
+                                                timestamp: new Date().toISOString()
+                                            })
+                                        });
+                                        if (response.ok) {
+                                            // 点灯表示
+                                            btn.classList.remove('opacity-40');
+                                            btn.classList.add('opacity-100', 'text-red-500');
+                                            btn.innerText = '❤️';
+                                        }
+                                    } catch (err) {
+                                        console.error('Feedback error:', err);
+                                    }
+                                }}
+                                className="text-sm opacity-40 hover:opacity-80 active:scale-125 transition-all cursor-pointer"
+                                title="このコメントに「いいね」する（学習用）"
+                            >
+                                🤍
+                            </button>
+                        )}
+                    </div>
                     <textarea
                         ref={textareaRef}
                         value={post.aiComment}
@@ -513,6 +561,16 @@ export function TextEditor() {
                                 : "text-base leading-relaxed min-h-[120px]"
                         )}
                     />
+
+                    {/* スコアリング可視化 */}
+                    {analysisResult && analysisResult.pattern && (
+                        <ScoringVisualization
+                            pattern={analysisResult.pattern}
+                            subScores={analysisResult.sub_scores || {}}
+                            elementScores={analysisResult.element_scores || {}}
+                            detectedCriteria={analysisResult.flags || analysisResult.detected_criteria || []}
+                        />
+                    )}
                 </div>
             </div>
 
