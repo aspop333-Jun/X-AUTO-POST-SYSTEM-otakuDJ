@@ -409,9 +409,62 @@ export function ImageEditor() {
                         // TODO: Implement metadata extraction
                         console.log('Extract metadata');
                     }}
-                    onGenerateComment={() => {
-                        // TODO: Integrate with existing AI comment generation
-                        console.log('Generate AI comment');
+                    onGenerateComment={async () => {
+                        if (!currentImage) {
+                            showToast({
+                                type: 'error',
+                                title: '画像がありません'
+                            });
+                            return;
+                        }
+
+                        const toastId = showToast({
+                            type: 'loading',
+                            title: 'AIコメント生成中...',
+                            message: '画像を解析してコメントを生成しています'
+                        });
+
+                        try {
+                            // Base64 to Blob
+                            const res = await fetch(currentImage);
+                            const blob = await res.blob();
+                            const file = new File([blob], "image.jpg", { type: "image/jpeg" });
+
+                            const formData = new FormData();
+                            formData.append('image', file);
+                            formData.append('name', post.personName || '');
+                            formData.append('count', '3');
+
+                            const response = await fetch('/api/kotaro', {
+                                method: 'POST',
+                                body: formData
+                            });
+
+                            const result = await response.json();
+
+                            if (result.success && result.comments && result.comments.length > 0) {
+                                // 成功したらコメントを更新
+                                // 最初のコメントを採用 (将来的には選択UIを追加)
+                                updateQueueItem(currentEditIndex, {
+                                    comment: result.comments[0]
+                                });
+
+                                updateToast(toastId, {
+                                    type: 'success',
+                                    title: 'コメント生成完了！',
+                                    message: `パターン: ${result.expression}`
+                                });
+                            } else {
+                                throw new Error(result.error || '生成に失敗しました');
+                            }
+                        } catch (error: any) {
+                            console.error('[Kotaro] Error:', error);
+                            updateToast(toastId, {
+                                type: 'error',
+                                title: 'エラーが発生しました',
+                                message: error.message
+                            });
+                        }
                     }}
                     onFactCheck={post.personName ? async () => {
                         const personName = post.personName;

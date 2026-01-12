@@ -1,4 +1,4 @@
-# Kotaro Comment Scoring System V2.2（ドラフト）
+# Kotaro Comment Scoring System V2.3（ドラフト）
 
 ## 概要
 

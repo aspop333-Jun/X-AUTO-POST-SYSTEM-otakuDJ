@@ -1,5 +1,5 @@
 """
-Kotaro Comment Scoring Engine V2.2
+Kotaro Comment Scoring Engine V2.3
 
 60個判定基準 × 12パターン × 4サブ属性のスコアリングシステム
 
