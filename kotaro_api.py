@@ -83,7 +83,7 @@ class CommentCache:
 # グローバルキャッシュインスタンス
 comment_cache = CommentCache(ttl_seconds=3600)  # 1時間
 
-app = FastAPI(title="Kotaro-Engine API (V4.2)")
+app = FastAPI(title="Kotaro-Engine API (V4.7)")
 
 
 # CORS
@@ -251,7 +251,7 @@ E = round((合計ポイント / 15) * 5)
 
 
 # =============================================================================
-# コメント生成 (V3.0) - 修正版
+# コメント生成 (V4.7) - 憲法準拠版
 # =============================================================================
 
 # パターン別の実例コメント（モデルさんを褒める！構図/背景ではなく人を褒める）
@@ -270,8 +270,8 @@ PATTERN_EXAMPLES = {
     "P12": ["楽しそうでいいね😊", "笑顔が素敵！✨", "いい瞬間だね。かわいい❤"],
 }
 
-async def call_kotaro_generation_v3(pattern_info: Dict, element_scores: Dict[str, int], name: str) -> str:
-    """V3.0: パターン情報とA-Eスコアからコメントを生成（修正版）"""
+async def call_kotaro_generation_v4(pattern_info: Dict, element_scores: Dict[str, int], name: str) -> str:
+    """V4.7: パターン情報とA-Eスコアからコメントを生成（憲法準拠）"""
     
     # パターンIDを取得（P01〜P12形式に変換）
     pattern_id = pattern_info.get('id', 'P01')
@@ -446,7 +446,7 @@ async def call_kotaro_generation_v3(pattern_info: Dict, element_scores: Dict[str
 # =============================================================================
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "version": "3.0", "engine": "kotaro_v3"}
+    return {"status": "ok", "version": "4.7", "engine": "kotaro_v4"}
 
 
 @app.post("/generate")
@@ -455,7 +455,7 @@ async def generate_comment(
     name: str = Form(default=""),
     count: int = Form(default=1)
 ):
-    """V4.2 コメント生成エンドポイント"""
+    """V4.7 コメント生成エンドポイント"""
     
     # 画像一時保存
     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
@@ -487,19 +487,10 @@ async def generate_comment(
         # 4. コメント生成
         logger.info("Generating Kotaro comment...")
         comments = []
-        # TODO: generate function needs update to handle new pattern keys if necessary, strictly reusing v3 generator logic for now
-        # V3 generator uses pattern_id/name/attack, which V4 pattern_info provides.
-        # Element scores to pass: Use Adjusted Scores? Or Base? Adjusted is "truth" for V4.
-        
-        # V4.2のMods (文体) をコメント生成に反映させるには、call_kotaro_generation_v3を更新する必要があるかも。
-        # 現状は pattern_info と scores だけ。
-        # V4の「E親近感」による文体変更 (mods) を、generation関数に渡すか、generation内でEを見るか。
-        # call_kotaro_generation_v3 is simple prompt based on pattern.
-        # Let's check generation function signature: async def call_kotaro_generation_v3(pattern_info: Dict, element_scores: Dict[str, int], name: str)
-        # We can pass adj_scores.
+        # V4.7: generation function uses pattern_info/scores and strictly follows governance
         
         for i in range(count):
-            comment = await call_kotaro_generation_v3(pattern_info, adj_scores, name)
+            comment = await call_kotaro_generation_v4(pattern_info, adj_scores, name)
             comments.append(comment)
         
         # レスポンス構築
@@ -507,7 +498,7 @@ async def generate_comment(
         
         return {
             "success": True,
-            "version": "4.2",
+            "version": "4.7",
             "pattern": {
                 "id": pattern_id,
                 "name": pattern_info["name"],
@@ -605,7 +596,7 @@ async def get_feedback_stats():
         raise HTTPException(status_code=500, detail=str(e))
         
 if __name__ == "__main__":
-    print("\n🐯 Kotaro-Engine API Server (V3.0)")
+    print("\n🐯 Kotaro-Engine API Server (V4.7)")
     print(f"   VLM: {LMDEPLOY_API_URL}")
     print("   Mode: 5要素 × 4連単")
     print("=" * 40)
