@@ -9,7 +9,7 @@ set -e  # Exit on any error
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════╗"
-echo "║  🐯 Kotaro-Engine (Qwen + WSL2 GPU)                        ║"
+echo "║  🐯 Kotaro-Engine (LMDeploy + WSL2 GPU)                    ║"
 echo "║  GPU REQUIRED MODE - No CPU Fallback                       ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
@@ -20,144 +20,101 @@ echo ""
 echo "[1/4] 🔍 GPU Validation..."
 echo "─────────────────────────────────────────────────────────────"
 
-# Check nvidia-smi
 if ! command -v nvidia-smi &> /dev/null; then
     echo "❌ FATAL: nvidia-smi not found!"
-    echo "   Please ensure NVIDIA drivers are installed in WSL2."
-    echo "   Run: nvidia-smi in Windows to verify GPU."
     exit 1
 fi
 
-# Run nvidia-smi and capture output
-echo "[DEBUG] Running nvidia-smi..."
 nvidia-smi
-NVIDIA_EXIT=$?
-
-if [ $NVIDIA_EXIT -ne 0 ]; then
-    echo "❌ FATAL: nvidia-smi failed with exit code $NVIDIA_EXIT"
-    echo "   GPU is NOT accessible from WSL2!"
-    exit 1
-fi
-
-# Check for GPU in nvidia-smi output
-GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
-GPU_MEMORY=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader 2>/dev/null | head -1)
-
-if [ -z "$GPU_NAME" ]; then
-    echo "❌ FATAL: No GPU detected!"
-    exit 1
-fi
-
-echo "✅ GPU Detected: $GPU_NAME ($GPU_MEMORY)"
-echo ""
-
-# =============================================================================
-# STEP 2: Environment Setup
-# =============================================================================
-echo "[2/4] ⚙️  Environment Setup..."
-echo "─────────────────────────────────────────────────────────────"
-
-# GPU Optimization Settings
-export OLLAMA_GPU_LAYERS=-1
-export OLLAMA_NUM_GPU=99
-export OLLAMA_FLASH_ATTENTION=1
-export CUDA_VISIBLE_DEVICES=0
-
-# Debug logging
-export OLLAMA_DEBUG=1
-export TRANSFORMERS_VERBOSITY=info
-
-echo "   OLLAMA_GPU_LAYERS=$OLLAMA_GPU_LAYERS (all layers on GPU)"
-echo "   OLLAMA_NUM_GPU=$OLLAMA_NUM_GPU"
-echo "   OLLAMA_FLASH_ATTENTION=$OLLAMA_FLASH_ATTENTION"
-echo "   CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
-echo "   OLLAMA_DEBUG=1"
-echo ""
-
-# =============================================================================
-# STEP 3: Ollama Server
-# =============================================================================
-echo "[3/4] 🦙 Starting Ollama Server..."
-echo "─────────────────────────────────────────────────────────────"
-
-# Kill existing ollama if running
-if pgrep -x "ollama" > /dev/null; then
-    echo "   Stopping existing Ollama process..."
-    pkill -x ollama || true
-    sleep 2
-fi
-
-# Start Ollama with logging
-echo "   Starting Ollama serve..."
-ollama serve 2>&1 | tee /tmp/ollama.log &
-OLLAMA_PID=$!
-sleep 5
-
-# Verify Ollama is running
-if ! pgrep -x "ollama" > /dev/null; then
-    echo "❌ FATAL: Ollama failed to start!"
-    echo "   Check /tmp/ollama.log for details"
-    cat /tmp/ollama.log
-    exit 1
-fi
-
-# Verify GPU is being used by Ollama
-echo "[DEBUG] Checking Ollama GPU usage..."
-OLLAMA_GPU_CHECK=$(ollama list 2>&1)
-echo "   Ollama models: $(echo "$OLLAMA_GPU_CHECK" | head -5)"
-echo "✅ Ollama server running (PID: $OLLAMA_PID)"
-echo ""
-
-# =============================================================================
-# STEP 4: Python Environment
-# =============================================================================
-echo "[4/4] 🐍 Python Environment..."
-echo "─────────────────────────────────────────────────────────────"
-
-# Change to project directory (for WSL mount)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-echo "   Working directory: $(pwd)"
-
-# Activate venv
-if [ -d ".venv_wsl" ]; then
-    source .venv_wsl/bin/activate
-    echo "✅ Activated .venv_wsl"
-    echo "   Python: $(which python3)"
-    echo "   Version: $(python3 --version)"
-else
-    echo "❌ FATAL: .venv_wsl not found!"
-    echo "   Run: ./setup_kotaro.sh first"
-    exit 1
-fi
-
-# Verify PyTorch CUDA
-echo ""
-echo "[DEBUG] Verifying PyTorch CUDA..."
-python3 -c "
-import torch
-print(f'   PyTorch version: {torch.__version__}')
-print(f'   CUDA available: {torch.cuda.is_available()}')
-if torch.cuda.is_available():
-    print(f'   CUDA version: {torch.version.cuda}')
-    print(f'   GPU: {torch.cuda.get_device_name(0)}')
-    print(f'   VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB')
-else:
-    print('❌ FATAL: PyTorch cannot access CUDA!')
-    exit(1)
-"
-
 if [ $? -ne 0 ]; then
-    echo "❌ FATAL: PyTorch CUDA check failed!"
+    echo "❌ FATAL: nvidia-smi failed!"
     exit 1
 fi
 
-echo ""
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║  ✅ All checks passed - Starting API Server                ║"
-echo "║  URL: http://localhost:8000                                ║"
-echo "╚════════════════════════════════════════════════════════════╝"
+echo "✅ GPU Detected"
 echo ""
 
-# Start API server with verbose logging
-exec python3 kotaro_api.py
+# =============================================================================
+# STEP 2: Start LMDeploy Backend
+# =============================================================================
+echo "[2/4] 🚀 Starting LMDeploy Backend (Port 23334)..."
+echo "─────────────────────────────────────────────────────────────"
+
+# Determine VENV for backend
+if [ -d ".venv_lmdeploy" ]; then
+    BACKEND_VENV=".venv_lmdeploy"
+    echo "   Using venv: .venv_lmdeploy"
+elif [ -d ".venv_wsl" ]; then
+    BACKEND_VENV=".venv_wsl"
+    echo "   Using venv: .venv_wsl"
+else
+    echo "⚠️  Warning: No dedicated venv found for backend. Trying global python..."
+    BACKEND_VENV=""
+fi
+
+# Cleanup function
+cleanup() {
+    echo ""
+    echo "🛑 Stopping servers..."
+    if [ ! -z "$BACKEND_PID" ]; then
+        kill $BACKEND_PID || true
+    fi
+    exit
+}
+trap cleanup SIGINT SIGTERM EXIT
+
+# Start Backend in background
+(
+    if [ ! -z "$BACKEND_VENV" ]; then
+        source $BACKEND_VENV/bin/activate
+    fi
+    echo "   Launching scripts/launch_qwen2.py..."
+    python3 scripts/launch_qwen2.py
+) > /tmp/lmdeploy.log 2>&1 &
+BACKEND_PID=$!
+
+echo "   Backend PID: $BACKEND_PID"
+echo "   Waiting for port 23334..."
+
+# Wait loop
+MAX_RETRIES=60
+COUNT=0
+while ! timeout 1 bash -c "cat < /dev/null > /dev/tcp/localhost/23334" 2>/dev/null; do
+    sleep 1
+    COUNT=$((COUNT+1))
+    if [ $COUNT -ge $MAX_RETRIES ]; then
+        echo "❌ FATAL: Backend failed to start on port 23334."
+        echo "   Check /tmp/lmdeploy.log for details."
+        cat /tmp/lmdeploy.log
+        exit 1
+    fi
+    echo -n "."
+done
+echo ""
+echo "✅ Backend Ready!"
+
+# =============================================================================
+# STEP 3: Start API Server
+# =============================================================================
+echo "[3/4] 🐯 Starting Kotaro API (Port 8000)..."
+echo "─────────────────────────────────────────────────────────────"
+
+# Determine VENV for API
+if [ -d ".venv_wsl" ]; then
+    API_VENV=".venv_wsl"
+elif [ -d ".venv" ]; then
+    API_VENV=".venv"
+else
+    API_VENV=""
+fi
+
+if [ ! -z "$API_VENV" ]; then
+    # Create a subshell/script for API to avoid environment conflict if any,
+    # though strictly speaking activating another venv on top of previous one might work or fail depending on impl.
+    # Since we are in the main shell, we just activate.
+    # Note: Backend was started in subshell (), so its activation didn't affect us.
+    source $API_VENV/bin/activate
+    echo "   Activated $API_VENV"
+fi
+
+python3 kotaro_api.py
