@@ -1,5 +1,5 @@
 """
-Kotaro-Engine API Server (V3.0)
+Kotaro-Engine API Server (V4.2)
 ==============================
 5要素 (A-E) × 0〜5点 + 4連単方式によるパターン判定
 
