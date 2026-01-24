@@ -57,55 +57,48 @@ echo ""
 echo "[2/4] ⚙️  Environment Setup..."
 echo "─────────────────────────────────────────────────────────────"
 
-# GPU Optimization Settings
-export OLLAMA_GPU_LAYERS=-1
-export OLLAMA_NUM_GPU=99
-export OLLAMA_FLASH_ATTENTION=1
+# CUDA Settings
 export CUDA_VISIBLE_DEVICES=0
-
-# Debug logging
-export OLLAMA_DEBUG=1
 export TRANSFORMERS_VERBOSITY=info
 
-echo "   OLLAMA_GPU_LAYERS=$OLLAMA_GPU_LAYERS (all layers on GPU)"
-echo "   OLLAMA_NUM_GPU=$OLLAMA_NUM_GPU"
-echo "   OLLAMA_FLASH_ATTENTION=$OLLAMA_FLASH_ATTENTION"
 echo "   CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
-echo "   OLLAMA_DEBUG=1"
+echo "   TRANSFORMERS_VERBOSITY=$TRANSFORMERS_VERBOSITY"
 echo ""
 
 # =============================================================================
-# STEP 3: Ollama Server
+# STEP 3: LMDeploy Server (Qwen2-VL)
 # =============================================================================
-echo "[3/4] 🦙 Starting Ollama Server..."
+echo "[3/4] 🚀 Starting LMDeploy Server..."
 echo "─────────────────────────────────────────────────────────────"
 
-# Kill existing ollama if running
-if pgrep -x "ollama" > /dev/null; then
-    echo "   Stopping existing Ollama process..."
-    pkill -x ollama || true
-    sleep 2
+# Kill existing LMDeploy/Python processes on port 23334
+# Using lsof if available, otherwise trying pkill pattern
+if command -v lsof &> /dev/null; then
+    if lsof -i :23334 -t >/dev/null; then
+        echo "   Stopping existing process on port 23334..."
+        kill $(lsof -i :23334 -t) || true
+        sleep 2
+    fi
 fi
 
-# Start Ollama with logging
-echo "   Starting Ollama serve..."
-ollama serve 2>&1 | tee /tmp/ollama.log &
-OLLAMA_PID=$!
-sleep 5
+# Start LMDeploy using the python script
+echo "   Starting LMDeploy serve (scripts/launch_qwen2.py)..."
+python3 scripts/launch_qwen2.py > /tmp/lmdeploy.log 2>&1 &
+LMDEPLOY_PID=$!
+echo "   PID: $LMDEPLOY_PID"
 
-# Verify Ollama is running
-if ! pgrep -x "ollama" > /dev/null; then
-    echo "❌ FATAL: Ollama failed to start!"
-    echo "   Check /tmp/ollama.log for details"
-    cat /tmp/ollama.log
+echo "   Waiting for server initialization (15s)..."
+sleep 15
+
+# Verify process is still running
+if ! ps -p $LMDEPLOY_PID > /dev/null; then
+    echo "❌ FATAL: LMDeploy failed to start!"
+    echo "   Check /tmp/lmdeploy.log for details"
+    cat /tmp/lmdeploy.log
     exit 1
 fi
 
-# Verify GPU is being used by Ollama
-echo "[DEBUG] Checking Ollama GPU usage..."
-OLLAMA_GPU_CHECK=$(ollama list 2>&1)
-echo "   Ollama models: $(echo "$OLLAMA_GPU_CHECK" | head -5)"
-echo "✅ Ollama server running (PID: $OLLAMA_PID)"
+echo "✅ LMDeploy server running (PID: $LMDEPLOY_PID)"
 echo ""
 
 # =============================================================================
@@ -123,8 +116,6 @@ echo "   Working directory: $(pwd)"
 if [ -d ".venv_wsl" ]; then
     source .venv_wsl/bin/activate
     echo "✅ Activated .venv_wsl"
-    echo "   Python: $(which python3)"
-    echo "   Version: $(python3 --version)"
 else
     echo "❌ FATAL: .venv_wsl not found!"
     echo "   Run: ./setup_kotaro.sh first"
@@ -141,7 +132,6 @@ print(f'   CUDA available: {torch.cuda.is_available()}')
 if torch.cuda.is_available():
     print(f'   CUDA version: {torch.version.cuda}')
     print(f'   GPU: {torch.cuda.get_device_name(0)}')
-    print(f'   VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB')
 else:
     print('❌ FATAL: PyTorch cannot access CUDA!')
     exit(1)
@@ -159,5 +149,5 @@ echo "║  URL: http://localhost:8000                                ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Start API server with verbose logging
+# Start API server
 exec python3 kotaro_api.py

@@ -1,7 +1,8 @@
 """
-Kotaro-Engine API Server (V3.0)
+Kotaro-Engine API Server (V4.2 + Gemini Hybrid)
 ==============================
-5要素 (A-E) × 0〜5点 + 4連単方式によるパターン判定
+5要素 (A-E) × 0〜5点 + 4連単方式によるパターン判定 (Local LLM)
++ Gemini API による汎用コメント生成 (Hybrid)
 
 設計思想:
 - 写真は「誤解」してよい
@@ -10,6 +11,7 @@ Kotaro-Engine API Server (V3.0)
 """
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import httpx
 import uvicorn
 import base64
@@ -22,15 +24,25 @@ from typing import List, Dict, Any, Optional
 from kotaro_scoring_v4 import KotaroScorerV4
 from openai import AsyncOpenAI
 import random
+import google.generativeai as genai
+from dotenv import load_dotenv
+import re
+
+# 環境変数を読み込む
+load_dotenv()
 
 # ロガー設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("kotaro_api_v4")
 
+# Gemini API設定
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
 # =============================================================================
 # コメント重複防止キャッシュ（1時間TTL）
 # =============================================================================
-import re
 
 class CommentCache:
     """1時間以内に使用されたコメントをブロックするキャッシュ"""
@@ -83,7 +95,7 @@ class CommentCache:
 # グローバルキャッシュインスタンス
 comment_cache = CommentCache(ttl_seconds=3600)  # 1時間
 
-app = FastAPI(title="Kotaro-Engine API (V4.2)")
+app = FastAPI(title="Kotaro-Engine API (V4.2 + Gemini)")
 
 
 # CORS
@@ -98,16 +110,109 @@ app.add_middleware(
 # V4.2 スコアラー
 scorer = KotaroScorerV4()
 
-# VLM設定
+# VLM設定 (LMDeploy)
 LMDEPLOY_API_URL = "http://localhost:23334/v1"
 LMDEPLOY_API_KEY = "dummy"
 
 # OpenAI Client (Async)
 client = AsyncOpenAI(api_key=LMDEPLOY_API_KEY, base_url=LMDEPLOY_API_URL)
 
+# =============================================================================
+# Gemini Logic (Merged from api/main.py)
+# =============================================================================
+
+class CommentRequest(BaseModel):
+    """コメント生成リクエスト (Gemini)"""
+    booth_name: str = "ブース"
+    role: str = "モデル"
+    category: str = "ブース"
+    expression_type: str = "笑顔"
+    focus_point: str = "表情"
+    context_match: str = "ブースの雰囲気"
+    image_base64: Optional[str] = None  # オプション: 画像データ
+
+class CommentResponse(BaseModel):
+    """コメント生成レスポンス (Gemini)"""
+    comment: str
+    source: str  # "ai" or "rule_based"
+
+# ルールベースのフォールバック用テンプレート
+FALLBACK_TEMPLATES = {
+    "笑顔": [
+        "爽やかな笑顔がブースの雰囲気にぴったりでした✨",
+        "自然な笑顔がとても魅力的でした✨",
+        "明るい笑顔が会場を華やかにしていました✨",
+    ],
+    "クール": [
+        "凛とした表情がとても印象的でした✨",
+        "クールな雰囲気がブースの世界観に合っていました✨",
+        "シャープな表情が目を引きました✨",
+    ],
+    "柔らか": [
+        "柔らかな表情がとても魅力的でした✨",
+        "優しい雰囲気がブースに溶け込んでいました✨",
+        "穏やかな佇まいが印象的でした✨",
+    ],
+    "華やか": [
+        "華やかな存在感が際立っていました✨",
+        "輝くような雰囲気がブースを彩っていました✨",
+        "存在感のある佇まいが印象的でした✨",
+    ],
+    "自然": [
+        "自然体の佇まいがとても魅力的でした✨",
+        "落ち着いた雰囲気が会場に溶け込んでいました✨",
+        "飾らない雰囲気が素敵でした✨",
+    ],
+    "力強い": [
+        "力強い視線に引き込まれました✨",
+        "堂々とした佇まいがとても印象的でした✨",
+        "圧倒的な存在感が目を引きました✨",
+    ],
+}
+
+def generate_fallback_comment(expression_type: str) -> str:
+    """ルールベースでフォールバックコメントを生成"""
+    templates = FALLBACK_TEMPLATES.get(expression_type, FALLBACK_TEMPLATES["笑顔"])
+    return random.choice(templates)
+
+def build_gemini_prompt(request: CommentRequest, has_image: bool) -> str:
+    """Gemini用のプロンプトを構築"""
+    prompt = f"""あなたはイベント写真の一言コメントを書くプロです。
+{'この写真を見て、' if has_image else ''}以下のルールで1行コメントを1つだけ生成してください：
+
+【絶対ルール】
+- 1行のみ（20〜30文字）
+- 「〇〇が△△にぴったり/合っていた」形式
+- 最後に✨を付ける
+- 固有名詞・キャラ名・作品名は絶対に入れない
+- 主語を「俺」にしない
+- スラング禁止（神、優勝、バチバチ等）
+
+【使える評価軸のみ使用】
+笑顔、表情、視線、佇まい、雰囲気、衣装が似合う、ライトに映える、ブースの雰囲気に合う
+
+{'【写真から読み取るべき要素】' if has_image else ''}
+{'''- 人物の表情（笑顔、クール、優しい、凛としたなど）
+- 全体の雰囲気（明るい、落ち着いた、華やかなど）
+- 衣装やライティングの印象''' if has_image else ''}
+
+【ユーザーが選択した雰囲気】
+- 表情・雰囲気: {request.expression_type}
+- 注目ポイント: {request.focus_point}
+- マッチ先: {request.context_match}
+
+【情報】
+- カテゴリ: {request.category}
+- ブース: {request.booth_name}
+- 役割: {request.role}
+
+【出力形式】
+コメントのみを1行で出力（説明不要）"""
+    return prompt
+
 
 # =============================================================================
-# VLM分析 (A-E採点 + V4フラグ検出)
+# VLM分析 (A-E採点 + V4フラグ検出) - Local LLM
 # =============================================================================
 async def call_vlm_analysis_v4(image_path: str) -> Dict[str, Any]:
     """VLMに画像を投げてA-Eスコアと二次加点用フラグを取得"""
@@ -245,9 +350,6 @@ E = round((合計ポイント / 15) * 5)
         logger.error(f"VLM Error: {e}")
         # フォールバック
         return {"A": 3, "B": 3, "C": 3, "D": 3, "E": 3}, {}
-
-        logger.error(f"VLM Error: {e}")
-        raise HTTPException(status_code=500, detail=f"VLM Analysis Failed: {str(e)}")
 
 
 # =============================================================================
@@ -446,7 +548,12 @@ async def call_kotaro_generation_v3(pattern_info: Dict, element_scores: Dict[str
 # =============================================================================
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "version": "3.0", "engine": "kotaro_v3"}
+    return {
+        "status": "ok",
+        "version": "4.2",
+        "engine": "kotaro_v4_hybrid",
+        "gemini_enabled": bool(GEMINI_API_KEY)
+    }
 
 
 @app.post("/generate")
@@ -455,7 +562,7 @@ async def generate_comment(
     name: str = Form(default=""),
     count: int = Form(default=1)
 ):
-    """V4.2 コメント生成エンドポイント"""
+    """V4.2 コメント生成エンドポイント (Local LLM)"""
     
     # 画像一時保存
     with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
@@ -487,32 +594,20 @@ async def generate_comment(
         # 4. コメント生成
         logger.info("Generating Kotaro comment...")
         comments = []
-        # TODO: generate function needs update to handle new pattern keys if necessary, strictly reusing v3 generator logic for now
-        # V3 generator uses pattern_id/name/attack, which V4 pattern_info provides.
-        # Element scores to pass: Use Adjusted Scores? Or Base? Adjusted is "truth" for V4.
-        
-        # V4.2のMods (文体) をコメント生成に反映させるには、call_kotaro_generation_v3を更新する必要があるかも。
-        # 現状は pattern_info と scores だけ。
-        # V4の「E親近感」による文体変更 (mods) を、generation関数に渡すか、generation内でEを見るか。
-        # call_kotaro_generation_v3 is simple prompt based on pattern.
-        # Let's check generation function signature: async def call_kotaro_generation_v3(pattern_info: Dict, element_scores: Dict[str, int], name: str)
-        # We can pass adj_scores.
         
         for i in range(count):
             comment = await call_kotaro_generation_v3(pattern_info, adj_scores, name)
             comments.append(comment)
         
         # レスポンス構築
-        # フロントエンドが表示に使う element_scores は、二次加点後(adj_scores)を使うべき。
-        
         return {
             "success": True,
             "version": "4.2",
             "pattern": {
                 "id": pattern_id,
                 "name": pattern_info["name"],
-                "attack": pattern_result.get("attack", pattern_info["attack"]), # scorer result might not have attack
-                "trigger": pattern_info["attack"], # Frontend uses trigger/attack
+                "attack": pattern_result.get("attack", pattern_info["attack"]),
+                "trigger": pattern_info["attack"],
                 "sub_ranking": pattern_result["sub4"].split(">"),
                 "bone": pattern_info["bone"],
                 "mods": pattern_result["mods"]
@@ -533,12 +628,75 @@ async def generate_comment(
         os.remove(tmp_path)
 
 
+@app.post("/generate-comment", response_model=CommentResponse)
+async def generate_gemini_comment(request: CommentRequest):
+    """
+    一言コメントを生成 (Gemini Hybrid)
+
+    - 画像がある場合: Gemini Vision APIで分析して生成
+    - 画像がない場合: テキスト情報のみで生成
+    - APIエラー時: ルールベースでフォールバック
+    """
+
+    if not GEMINI_API_KEY:
+        # API未設定の場合はルールベースで生成
+        comment = generate_fallback_comment(request.expression_type)
+        return CommentResponse(comment=comment, source="rule_based")
+
+    try:
+        # Geminiモデルを初期化
+        model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+        # 画像の有無を確認
+        has_image = bool(request.image_base64)
+
+        # プロンプトを構築
+        prompt = build_gemini_prompt(request, has_image)
+
+        if has_image:
+            # 画像付きリクエスト
+            # Base64から画像データを抽出
+            if request.image_base64.startswith('data:'):
+                # data:image/jpeg;base64,xxxx 形式の場合
+                header, image_data = request.image_base64.split(',', 1)
+                mime_type = header.split(':')[1].split(';')[0]
+            else:
+                # 純粋なbase64の場合
+                image_data = request.image_base64
+                mime_type = "image/jpeg"
+
+            image_bytes = base64.b64decode(image_data)
+
+            # 画像を含むコンテンツを生成
+            response = model.generate_content([
+                {
+                    "mime_type": mime_type,
+                    "data": image_bytes
+                },
+                prompt
+            ])
+        else:
+            # テキストのみのリクエスト
+            response = model.generate_content(prompt)
+
+        # レスポンスからテキストを抽出
+        if response.text:
+            comment = response.text.strip()
+            return CommentResponse(comment=comment, source="ai")
+        else:
+            raise ValueError("Empty response from API")
+
+    except Exception as e:
+        logger.error(f"Gemini API error: {e}")
+        # エラー時はルールベースでフォールバック
+        comment = generate_fallback_comment(request.expression_type)
+        return CommentResponse(comment=comment, source="rule_based")
+
+
 # =============================================================================
 # フィードバックAPI（コメント学習用）
 # =============================================================================
 FEEDBACK_FILE = os.path.join(os.path.dirname(__file__), "feedback_likes.json")
-
-from pydantic import BaseModel
 
 class FeedbackRequest(BaseModel):
     comment: str
@@ -605,9 +763,8 @@ async def get_feedback_stats():
         raise HTTPException(status_code=500, detail=str(e))
         
 if __name__ == "__main__":
-    print("\n🐯 Kotaro-Engine API Server (V3.0)")
+    print("\n🐯 Kotaro-Engine API Server (V4.2 + Gemini)")
     print(f"   VLM: {LMDEPLOY_API_URL}")
-    print("   Mode: 5要素 × 4連単")
+    print("   Mode: Hybrid (Local + Gemini)")
     print("=" * 40)
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
