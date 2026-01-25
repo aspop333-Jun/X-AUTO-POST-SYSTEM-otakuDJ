@@ -110,7 +110,7 @@ export function TextEditor() {
                 updateToast(toastId, {
                     type: 'success',
                     title: '🐯 Kotaro生成完了！',
-                    message: `表情: ${result.expression}`
+                    message: `パターン: ${result.pattern?.name || '不明'}`
                 });
             } else {
                 throw new Error('生成に失敗しました');
