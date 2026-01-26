@@ -243,6 +243,124 @@ class VisionCore:
         
         return result
     
+    def analyze_v4(self, image_path: str) -> str:
+        """
+        V4.2互換のスコアリング分析 (A-E + Flags)
+        kotaro_api.py の call_vlm_analysis_v4 と同等のロジック
+        """
+        self._load_model()
+        image = self._preprocess_image(image_path)
+
+        system_prompt = """# Kotaro VLM Analysis Protocol
+## 0. 位置づけ（最上位）
+本プロトコルは虎太郎エンジン最上位制御文書に従う構造的分析指示である。
+- 感情を盛らない
+- 推測しない
+- 定義済みパターンに基づき構造的に判断する
+
+## 1. 出力条件
+- JSON形式のみを出力
+- 抽象語・逃げワード禁止
+- 説明文禁止
+"""
+
+        user_prompt = """<task>
+画像を構造的に分析し、5要素(A-E)を0-5で採点、フラグ(flags)をtrue/falseで判定せよ。
+</task>
+
+<scoring_rules>
+## 採点基準（0-5点）
+### A: 表情の確定遅延（余韻）
+- 0=表情固定
+- 5=余韻・揺らぎあり
+
+### B: 視線の意図未決定（構図）
+- 0=明確
+- 5=視線・構図が散っている
+
+### C: 顔パーツ感情非同期（クール/ギャップ）
+- 0=感情一致
+- 5=目と口で違う・ポーズが強い
+
+### D: 緊張と緩和の同時存在（温度）
+- 0=冷たい・緊張のみ
+- 5=温かい・癒やし・安心
+
+### E: 親近感（身体所作ポイント合計、0-15→0-5正規化）
+以下の所作を検出し、ポイントを加算:
+- E01_hand_near_face: 顔or頭付近で手ポーズ → 5点
+- E02_hand_pose: 顔以外で手ポーズ → 3点
+- E03_mouth_open: 口が開いている → 2点
+- E04_heart_sign: 手でハートマーク → 5点
+E = round((合計ポイント / 15) * 5)
+</scoring_rules>
+
+<flag_rules>
+## フラグ判定基準（true/false）
+
+### 雰囲気フラグ（厳格判定）
+- casual_moment: ふとした瞬間。ただしpose_safe_theory=trueなら基本false
+- nostalgic: フィルム写真のような思い出感
+- crowd_venue: イベント会場、人混み、ブース背景
+- group_feeling: 複数人、または「仲間」を感じる
+
+### 表情・ポーズフラグ（厳格判定）
+- talk_to: 口が開いている OR 手がカメラ方向 OR 目線がカメラに刺さっている。どれも無ければfalse
+- close_dist: カメラとの距離が物理的にかなり近い
+- costume_strong: 衣装、コスプレ、役作りが非常に強い
+- act_point_or_salute: 指差し、敬礼、手を伸ばすなどの明確なアクション
+- prop_strong: 傘、看板、配布物などの「物」が目立っている
+
+### 体と顔の向き（１つのみtrue）
+- pose_safe_theory: 体は斜めで、顔だけカメラを向いている（無難・セオリー）
+- pose_front_true: 体も顔も真正面を向いている（親密・強）
+- pose_side_cool: 体は斜めで、顔も斜めや横を向いている（クール）
+- pose_front_body_face_angled: 体は正面だが、顔は斜めを向いている
+</flag_rules>
+
+<output_format>
+## 出力形式（厳守）
+```json
+{
+    "scores": {"A": 3, "B": 4, "C": 2, "D": 1, "E": 5},
+    "flags": {
+        "casual_moment": true,
+        "nostalgic": false,
+        "crowd_venue": false,
+        "group_feeling": false,
+        "talk_to": true,
+        "close_dist": true,
+        "costume_strong": false,
+        "act_point_or_salute": false,
+        "prop_strong": false,
+        "pose_safe_theory": true,
+        "pose_front_true": false,
+        "pose_side_cool": false,
+        "pose_front_body_face_angled": false
+    }
+}
+```
+</output_format>
+
+## Final Output
+"""
+        msgs = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": [image, user_prompt]},
+        ]
+
+        result = self.model.chat(
+            image=None,
+            msgs=msgs,
+            tokenizer=self.tokenizer,
+            sampling=True,
+            temperature=0.3,
+            max_tokens=512,
+        )
+
+        self._clear_cache()
+        return result
+
     def _clear_cache(self):
         """VRAM解放"""
         if torch.cuda.is_available():
