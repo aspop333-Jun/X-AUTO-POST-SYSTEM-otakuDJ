@@ -3,6 +3,10 @@
 # OllamaクライアントおよびAPI
 ollama>=0.1.0
 
+# Local LLM Backend (Qwen2-VL via LMDeploy)
+openai>=1.0.0
+lmdeploy
+
 # FastAPI サーバー
 fastapi>=0.100.0
 uvicorn>=0.22.0
