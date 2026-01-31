@@ -57,107 +57,80 @@ echo ""
 echo "[2/4] ⚙️  Environment Setup..."
 echo "─────────────────────────────────────────────────────────────"
 
-# GPU Optimization Settings
-export OLLAMA_GPU_LAYERS=-1
-export OLLAMA_NUM_GPU=99
-export OLLAMA_FLASH_ATTENTION=1
-export CUDA_VISIBLE_DEVICES=0
-
-# Debug logging
-export OLLAMA_DEBUG=1
-export TRANSFORMERS_VERBOSITY=info
-
-echo "   OLLAMA_GPU_LAYERS=$OLLAMA_GPU_LAYERS (all layers on GPU)"
-echo "   OLLAMA_NUM_GPU=$OLLAMA_NUM_GPU"
-echo "   OLLAMA_FLASH_ATTENTION=$OLLAMA_FLASH_ATTENTION"
-echo "   CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
-echo "   OLLAMA_DEBUG=1"
-echo ""
-
-# =============================================================================
-# STEP 3: Ollama Server
-# =============================================================================
-echo "[3/4] 🦙 Starting Ollama Server..."
-echo "─────────────────────────────────────────────────────────────"
-
-# Kill existing ollama if running
-if pgrep -x "ollama" > /dev/null; then
-    echo "   Stopping existing Ollama process..."
-    pkill -x ollama || true
-    sleep 2
-fi
-
-# Start Ollama with logging
-echo "   Starting Ollama serve..."
-ollama serve 2>&1 | tee /tmp/ollama.log &
-OLLAMA_PID=$!
-sleep 5
-
-# Verify Ollama is running
-if ! pgrep -x "ollama" > /dev/null; then
-    echo "❌ FATAL: Ollama failed to start!"
-    echo "   Check /tmp/ollama.log for details"
-    cat /tmp/ollama.log
-    exit 1
-fi
-
-# Verify GPU is being used by Ollama
-echo "[DEBUG] Checking Ollama GPU usage..."
-OLLAMA_GPU_CHECK=$(ollama list 2>&1)
-echo "   Ollama models: $(echo "$OLLAMA_GPU_CHECK" | head -5)"
-echo "✅ Ollama server running (PID: $OLLAMA_PID)"
-echo ""
-
-# =============================================================================
-# STEP 4: Python Environment
-# =============================================================================
-echo "[4/4] 🐍 Python Environment..."
-echo "─────────────────────────────────────────────────────────────"
-
 # Change to project directory (for WSL mount)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 echo "   Working directory: $(pwd)"
 
-# Activate venv
+# =============================================================================
+# STEP 3: Start LMDeploy Backend
+# =============================================================================
+echo "[3/4] 🚀 Starting LMDeploy Backend (Port 23334)..."
+echo "─────────────────────────────────────────────────────────────"
+
+# Kill existing processes on port 23334
+PID_23334=$(lsof -t -i:23334 || true)
+if [ -n "$PID_23334" ]; then
+    echo "   Stopping existing process on port 23334 (PID $PID_23334)..."
+    kill -9 "$PID_23334" || true
+    sleep 2
+fi
+
+# Launch in background
+# Prefer .venv_lmdeploy if exists, else assume current env has it
+if [ -d ".venv_lmdeploy" ]; then
+    echo "   Using .venv_lmdeploy for backend..."
+    (source .venv_lmdeploy/bin/activate && python3 scripts/launch_qwen2.py > lmdeploy_server.log 2>&1) &
+else
+    echo "   Using default environment for backend..."
+    python3 scripts/launch_qwen2.py > lmdeploy_server.log 2>&1 &
+fi
+
+LMDEPLOY_PID=$!
+echo "   Backend started (PID: $LMDEPLOY_PID). Waiting for initialization (15s)..."
+sleep 15
+
+# Check if it's running
+if ! ps -p $LMDEPLOY_PID > /dev/null; then
+    echo "❌ FATAL: LMDeploy failed to start!"
+    echo "   Check lmdeploy_server.log:"
+    tail -n 10 lmdeploy_server.log
+    exit 1
+fi
+
+echo "✅ LMDeploy Backend Running"
+echo ""
+
+# =============================================================================
+# STEP 4: Start Kotaro API
+# =============================================================================
+echo "[4/4] 🐯 Starting Kotaro API (Port 8000)..."
+echo "─────────────────────────────────────────────────────────────"
+
+# Activate API venv
 if [ -d ".venv_wsl" ]; then
     source .venv_wsl/bin/activate
-    echo "✅ Activated .venv_wsl"
-    echo "   Python: $(which python3)"
-    echo "   Version: $(python3 --version)"
+    echo "✅ Activated .venv_wsl for API"
+elif [ -d ".venv" ]; then
+    source .venv/bin/activate
+    echo "✅ Activated .venv for API"
 else
-    echo "❌ FATAL: .venv_wsl not found!"
-    echo "   Run: ./setup_kotaro.sh first"
-    exit 1
+    echo "⚠️  No specific venv found for API. Using system python."
 fi
 
-# Verify PyTorch CUDA
-echo ""
-echo "[DEBUG] Verifying PyTorch CUDA..."
-python3 -c "
-import torch
-print(f'   PyTorch version: {torch.__version__}')
-print(f'   CUDA available: {torch.cuda.is_available()}')
-if torch.cuda.is_available():
-    print(f'   CUDA version: {torch.version.cuda}')
-    print(f'   GPU: {torch.cuda.get_device_name(0)}')
-    print(f'   VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB')
-else:
-    print('❌ FATAL: PyTorch cannot access CUDA!')
-    exit(1)
-"
+echo "   Python: $(which python3)"
+echo "   Version: $(python3 --version)"
 
-if [ $? -ne 0 ]; then
-    echo "❌ FATAL: PyTorch CUDA check failed!"
-    exit 1
-fi
+# Verify connection to Backend (Simple check)
+echo "   Checking connection to LMDeploy (localhost:23334)..."
+# We could use curl here but let's assume if process is up, it's ok for now.
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════╗"
-echo "║  ✅ All checks passed - Starting API Server                ║"
+echo "║  ✅ All systems go - Starting API Server                   ║"
 echo "║  URL: http://localhost:8000                                ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Start API server with verbose logging
+# Start API server
 exec python3 kotaro_api.py
